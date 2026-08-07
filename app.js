@@ -30,6 +30,13 @@ let sortState = { column: 'date', direction: 'desc' };
 let calendarYear = new Date().getFullYear();
 let calendarMonth = new Date().getMonth();
 
+// Pagination
+const PAGE_SIZE = 25;
+let currentPage = 1;
+let lastFilteredRecords = [];
+
+let lastEditTime = null;
+
 // ========================
 // Storage helpers
 // ========================
@@ -236,6 +243,7 @@ function sortTable(column) {
   if (activeTh) {
     activeTh.classList.add(sortState.direction === 'asc' ? 'sorted-asc' : 'sorted-desc');
   }
+  currentPage = 1;
   render();
 }
 
@@ -395,6 +403,8 @@ function saveRecord() {
   }
 
   saveRecords();
+  currentPage = 1;
+  markEdited();
   render();
   closeModal('recordModal');
   showToastMsg(editId ? 'Registro actualizado.' : 'Registro creado.', 'success');
@@ -404,6 +414,7 @@ function deleteRecord(id) {
   if (!window.confirm('¿Eliminar este registro de horas extras?')) return;
   records = records.filter(r => r.id !== id);
   saveRecords();
+  markEdited();
   render();
   showToastMsg('Registro eliminado.', 'success');
 }
@@ -413,6 +424,7 @@ function clearAllRecords() {
   if (!window.confirm('¿Seguro que deseas vaciar toda la lista?')) return;
   records = [];
   saveRecords();
+  markEdited();
   render();
   showToastMsg('Lista vaciada.', 'success');
 }
@@ -485,12 +497,19 @@ function render() {
     );
   }
   filtered = applySort(filtered);
+  lastFilteredRecords = filtered;
 
   if (filtered.length === 0) {
     emptyState.style.display = 'block';
+    document.getElementById('tablePagination').style.display = 'none';
   } else {
     emptyState.style.display = 'none';
-    filtered.forEach(r => {
+    const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const pageRecords = filtered.slice(start, start + PAGE_SIZE);
+    pageRecords.forEach(r => {
       const tr = document.createElement('tr');
       const isCovering = r.covering && !r.covering.includes('N/A');
       tr.innerHTML = `
@@ -506,6 +525,7 @@ function render() {
         </td>`;
       tbody.appendChild(tr);
     });
+    renderPagination(filtered.length, totalPages);
   }
 
   let totalHours = 0;
@@ -527,6 +547,7 @@ function render() {
   document.getElementById('statMaxWorker').innerText = maxHours > 0 ? maxWorkerName : '-';
   document.getElementById('statCoverages').innerText = coverCount;
   updateStatsBars(totalHours, uniqueWorkers, coverCount);
+  updateLastUpdated();
 
   document.querySelectorAll('th.sortable').forEach(th => {
     th.classList.remove('sorted-asc', 'sorted-desc');
@@ -536,6 +557,75 @@ function render() {
     }
   });
 }
+
+function renderPagination(totalRecords, totalPages) {
+  const container = document.getElementById('tablePagination');
+  if (!container) return;
+  container.style.display = 'flex';
+  if (totalRecords <= PAGE_SIZE) { container.innerHTML = `<span class="info">${totalRecords} registro${totalRecords !== 1 ? 's' : ''}</span>`; return; }
+  let html = `<button onclick="goToPage(1)" ${currentPage === 1 ? 'disabled' : ''} aria-label="Primera página">«</button>`;
+  html += `<button onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} aria-label="Página anterior">‹</button>`;
+  const startPage = Math.max(1, currentPage - 2);
+  const endPage = Math.min(totalPages, startPage + 4);
+  if (startPage > 1) html += `<span class="info">…</span>`;
+  for (let p = startPage; p <= endPage; p++) {
+    html += `<button onclick="goToPage(${p})" class="${p === currentPage ? 'active' : ''}" aria-label="Página ${p}" ${p === currentPage ? 'aria-current="page"' : ''}>${p}</button>`;
+  }
+  if (endPage < totalPages) html += `<span class="info">…</span>`;
+  html += `<button onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''} aria-label="Página siguiente">›</button>`;
+  html += `<button onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''} aria-label="Última página">»</button>`;
+  const start = (currentPage - 1) * PAGE_SIZE + 1;
+  const end = Math.min(start + PAGE_SIZE - 1, totalRecords);
+  html += `<span class="info">${start}-${end} de ${totalRecords}</span>`;
+  container.innerHTML = html;
+}
+
+function goToPage(page) {
+  currentPage = page;
+  render();
+  window.scrollTo({ top: document.querySelector('.table-card').offsetTop - 100, behavior: 'smooth' });
+}
+
+function filterByStat(type) {
+  if (type === 'total') {
+    document.getElementById('monthFilter').value = 'all';
+    document.getElementById('unitFilter').value = 'all';
+    document.getElementById('searchInput').value = '';
+    currentPage = 1;
+    render();
+    showToastMsg('Mostrando todos los registros.', 'info');
+  } else if (type === 'workers') {
+    openWorkerSummaryModal();
+  } else if (type === 'coverages') {
+    document.getElementById('searchInput').value = '';
+    currentPage = 1;
+    render();
+    showToastMsg(`${document.getElementById('statCoverages').innerText} coberturas registradas.`, 'info');
+  }
+}
+
+function updateLastUpdated() {
+  const el = document.getElementById('lastUpdated');
+  if (!el) return;
+  if (!lastEditTime) { el.textContent = ''; return; }
+  const diff = Math.round((Date.now() - lastEditTime) / 60000);
+  const txt = diff === 0 ? 'recién editado' :
+    diff < 60 ? `Última edición: hace ${diff} min` :
+    `Última edición: hace ${Math.round(diff/60)} h`;
+  el.textContent = txt;
+}
+
+function markEdited() {
+  lastEditTime = Date.now();
+  updateLastUpdated();
+}
+
+// Scroll-to-top FAB visibility
+window.addEventListener('scroll', () => {
+  const btn = document.getElementById('scrollToTopBtn');
+  if (!btn) return;
+  btn.style.display = window.scrollY > 300 ? 'flex' : 'none';
+});
 
 function updateStatsBars(totalHours, uniqueWorkers, coverCount) {
   const maxHours = 200, maxWorkers = 50, maxCovers = 30;

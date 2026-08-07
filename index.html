@@ -75,38 +75,44 @@
 <!-- FAB -->
 <button class="fab" onclick="openRecordModal()" title="➕ Registrar Horas" aria-label="Registrar nueva hora extra">+</button>
 
+<!-- Scroll to top FAB (hidden until scrolled) -->
+<button class="fab fab-secondary" id="scrollToTopBtn" onclick="window.scrollTo({top:0,behavior:'smooth'})" style="display:none;" title="Volver arriba" aria-label="Volver al inicio de la página">↑</button>
+
 <main id="main-content" class="container" role="main">
 
   <!-- Resumen de Stats -->
   <section class="stats-grid" aria-label="Resumen de horas extras">
-    <article class="stat-box">
+    <button class="stat-box stat-box-btn" onclick="filterByStat('total')" title="Ver todos los registros" aria-label="Total horas extras - clic para ver todos">
       <span class="title">Total Horas Extras</span>
       <span class="num" id="statTotal">0h</span>
       <div class="bar" aria-hidden="true"><div class="bar-fill" style="width:0%"></div></div>
-    </article>
-    <article class="stat-box">
+    </button>
+    <button class="stat-box stat-box-btn" onclick="filterByStat('workers')" title="Ver resumen por trabajador" aria-label="Trabajadores - clic para ver resumen">
       <span class="title">Trabajadores Con Extras</span>
       <span class="num" id="statWorkers">0</span>
       <div class="bar" aria-hidden="true"><div class="bar-fill" style="width:0%"></div></div>
-    </article>
-    <article class="stat-box" style="border-color:var(--warning)">
+    </button>
+    <button class="stat-box stat-box-btn" onclick="openWorkerSummaryModal()" title="Ver resumen por trabajador" style="border-color:var(--warning)" aria-label="Máx horas - clic para ver resumen">
       <span class="title" style="color:var(--warning)">👑 Máx. Horas Extras</span>
       <span class="num" id="statMaxWorker" style="color:var(--warning);font-size:15px;margin-top:4px;">-</span>
-    </article>
-    <article class="stat-box">
+    </button>
+    <button class="stat-box stat-box-btn" onclick="filterByStat('coverages')" title="Ver solo coberturas" aria-label="Total coberturas - clic para filtrar">
       <span class="title">Total Coberturas</span>
       <span class="num" id="statCoverages">0</span>
       <div class="bar" aria-hidden="true"><div class="bar-fill" style="width:0%"></div></div>
-    </article>
+    </button>
   </section>
+
+  <!-- Indicador de última edición -->
+  <div id="lastUpdated" class="last-updated" aria-live="polite"></div>
 
   <!-- Barra de Filtro de Mes, Unidad y Búsqueda -->
   <section class="top-bar" aria-label="Filtros">
-    <input type="search" class="search-input" style="flex:2;" id="searchInput" placeholder="🔍 Buscar por trabajador, unidad o persona a la que cubre..." oninput="render()" aria-label="Buscar registros">
-    <select class="search-input" style="flex:1;" id="monthFilter" onchange="render()" aria-label="Filtrar por mes">
+    <input type="search" class="search-input" style="flex:2;" id="searchInput" placeholder="🔍 Buscar por trabajador, unidad o persona a la que cubre..." oninput="currentPage=1;render()" autocomplete="off" aria-label="Buscar registros">
+    <select class="search-input" style="flex:1;" id="monthFilter" onchange="currentPage=1;render()" aria-label="Filtrar por mes">
       <option value="all">📅 Todas las Fechas</option>
     </select>
-    <select class="search-input" style="flex:1;" id="unitFilter" onchange="render()" aria-label="Filtrar por unidad">
+    <select class="search-input" style="flex:1;" id="unitFilter" onchange="currentPage=1;render()" aria-label="Filtrar por unidad">
       <option value="all">🏢 Todas las Unidades</option>
     </select>
   </section>
@@ -129,6 +135,7 @@
         <tbody id="recordsTbody"></tbody>
       </table>
     </div>
+    <div id="tablePagination" class="pagination" role="navigation" aria-label="Paginación de registros"></div>
     <div id="emptyState" class="empty-state" role="status" aria-live="polite" style="display:none;">
       <div class="icon">📋</div>
       <div>No hay registros de horas extras aún.</div>
