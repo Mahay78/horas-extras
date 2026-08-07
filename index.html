@@ -20,6 +20,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <style>
 :root {
   --bg: #0f172a;
@@ -123,6 +124,24 @@ tr:hover td { background: var(--card-hover); }
 #toast button { margin-left: 10px; background: var(--primary); color: #000; border: none; padding: 4px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; }
 @keyframes slideIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
 
+/* Calendar */
+.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
+.calendar-day { cursor: pointer; padding: 8px 4px; border-radius: 8px; border: 1px solid var(--border); min-height: 60px; transition: all 0.2s; }
+.calendar-day:hover { border-color: var(--primary); }
+.calendar-day.today { border: 2px solid var(--primary); }
+.calendar-day.has-records { background: var(--primary-glow); }
+.calendar-day-header { font-size: 11px; font-weight: 600; color: var(--muted); padding: 8px; }
+
+/* Worker List */
+.worker-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.worker-item:last-child { border-bottom: none; }
+.worker-item:hover { background: var(--card-hover); }
+
+/* Backup Status */
+.backup-status { font-size: 11px; padding: 4px 8px; border-radius: 6px; }
+.backup-ok { color: var(--success); }
+.backup-warn { color: var(--warning); }
+
 @media(max-width: 640px) { 
   header { padding: 10px 14px; }
   .header-wrap { flex-direction: column; align-items: stretch; gap: 10px; }
@@ -170,14 +189,20 @@ tr:hover td { background: var(--card-hover); }
       <button class="btn btn-primary" onclick="openRecordModal()">➕ Registrar Horas / Cobertura</button>
       <button class="btn btn-sm" id="installBtn" style="display:none;" onclick="installPWA()">📲 Instalar App</button>
       <button class="btn btn-sm" onclick="openChartsModal()">📊 Gráficos</button>
-     <button class="btn btn-sm" onclick="exportCSV()">📥 CSV / Excel</button>
-     <button class="btn btn-sm" onclick="exportJSON()">💾 JSON Backup</button>
-     <input type="file" id="importJSONInput" accept=".json" style="display:none" onchange="importJSON()">
-     <button class="btn btn-sm" onclick="document.getElementById('importJSONInput').click()">📤 Importar JSON</button>
-     <button class="btn btn-sm" onclick="printReport()">🖨️ PDF</button>
+      <button class="btn btn-sm" onclick="openCalendarModal()">📅 Calendario</button>
+      <button class="btn btn-sm" onclick="openWorkerSummaryModal()">👤 Resumen</button>
+      <button class="btn btn-sm" onclick="openWorkersModal()">👥 Trabajadores</button>
+      <button class="btn btn-sm" onclick="exportExcel()">📥 Excel (.xlsx)</button>
+      <button class="btn btn-sm" onclick="exportJSON()">💾 JSON Backup</button>
+      <input type="file" id="importJSONInput" accept=".json" style="display:none" onchange="importJSON()">
+      <button class="btn btn-sm" onclick="document.getElementById('importJSONInput').click()">📤 Importar JSON</button>
+      <button class="btn btn-sm" onclick="printReport()">🖨️ PDF</button>
       <button class="btn btn-sm" onclick="openEmailPDFModal()">✉️ Enviar PDF Correo</button>
+      <button class="btn btn-sm" onclick="createBackup()">💾 Backup</button>
+      <button class="btn btn-sm" onclick="restoreBackup()">🔄 Restaurar</button>
       <button class="btn btn-sm btn-danger" onclick="clearAllRecords()">🗑️ Vaciar Lista</button>
       <button class="btn btn-sm" onclick="toggleTheme()" id="themeBtn">🌙</button>
+      <div id="backupStatus" class="backup-status"></div>
     </div>
   </div>
 </header>
@@ -342,6 +367,75 @@ tr:hover td { background: var(--card-hover); }
   </div>
 </div>
 
+<!-- Modal Calendario -->
+<div class="modal" id="calendarModal">
+  <div class="modal-box" style="max-width:500px;">
+    <h2>📅 Calendario de Horas Extras</h2>
+    <div id="calendarContainer"></div>
+    <div style="display:flex; justify-content:flex-end; margin-top:16px;">
+      <button class="btn" onclick="closeModal('calendarModal')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Resumen por Trabajador -->
+<div class="modal" id="workerSummaryModal">
+  <div class="modal-box" style="max-width:700px;">
+    <h2>👤 Resumen por Trabajador</h2>
+    <div class="form-group">
+      <label>Filtrar por mes</label>
+      <select id="summaryMonthFilter" onchange="renderWorkerSummary()">
+        <option value="all">Todos</option>
+      </select>
+    </div>
+    <div style="max-height:400px;overflow-y:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead>
+          <tr style="border-bottom:1px solid var(--border);">
+            <th style="padding:8px;text-align:left;">Trabajador</th>
+            <th style="padding:8px;text-align:left;">Unidad</th>
+            <th style="padding:8px;text-align:center;">Horas</th>
+            <th style="padding:8px;text-align:center;">Días</th>
+            <th style="padding:8px;text-align:center;">Promedio</th>
+          </tr>
+        </thead>
+        <tbody id="workerSummaryTbody"></tbody>
+      </table>
+    </div>
+    <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
+      <button class="btn" onclick="closeModal('workerSummaryModal')">Cerrar</button>
+      <button class="btn btn-primary" onclick="exportWorkerSummaryExcel()">📥 Exportar Excel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Gestionar Trabajadores -->
+<div class="modal" id="workersModal">
+  <div class="modal-box" style="max-width:600px;">
+    <h2>👥 Gestionar Trabajadores</h2>
+    <div class="form-group">
+      <label>Seleccionar Unidad</label>
+      <select id="manageUnitSelect" onchange="renderWorkersList()"></select>
+    </div>
+    <div style="max-height:300px;overflow-y:auto;margin-bottom:16px;border:1px solid var(--border);border-radius:8px;">
+      <div id="workersList"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="flex:2;">
+        <label>Nuevo Trabajador</label>
+        <input type="text" id="newWorkerName" placeholder="APELLIDOS, NOMBRE">
+      </div>
+      <div class="form-group" style="flex:1;">
+        <label>&nbsp;</label>
+        <button class="btn btn-primary" onclick="addNewWorker()" style="width:100%;">+ Agregar</button>
+      </div>
+    </div>
+    <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
+      <button class="btn" onclick="closeModal('workersModal')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const INITIAL_UNITS = [
   { unit: "UNIDAD SVB 1310 ARRECIFE - 24H/DIA DE 09H A 09H", workers: ["FAJARDO RODRIGUEZ, ADRIAN", "NODA ALAMO, DAVID", "LOPEZ BETANCORT, JUAN JOSE", "LOPEZ GONZALEZ, GLORIA", "CARABALLO HERNANDEZ, JAVIER", "CORUJO FERNANDEZ, JONAY", "PEREZ CORUJO, DIANA", "RAMIREZ CAÑADA, FABIAN", "GUADALUPE HERNANDEZ, RAQUEL"] },
@@ -355,6 +449,40 @@ const INITIAL_UNITS = [
   { unit: "UNIDAD SVA 1391 PLAYABLANCA - 24H/DIA DE 09H A 09H", workers: ["ALGUACIL MIRALLES, ALEJANDRO", "ARCA VASQUEZ, BRYAN", "MOREIRA ARMAS, ANTONIO", "ROSARIO GALINDO, ELISABET DEL PINO", "RODRIGUEZ NOZAL, MARIA VALLE", "FONDON RODRIGUEZ, OSCAR", "ALVAREZ PEREZ, JAZMINA MARIA", "SILVA HERNANDEZ, ACOIDAN"] },
   { unit: "UNIDADES TSNU DE L/V 07H A 15H", workers: ["CEDRES DORTA, TANIA", "SCHLOSSER, MARIE", "MORENO GÜEMES, ROCIO", "BOLAÑOS ARANDA, JOSE IGNACIO", "MEDINA CASANOVA, ADRIAN", "CABRERA MARQUEZ, MIGUEL ANGEL", "MARTIN FONTES, IBAN", "CABRERA SUAREZ, NATANAEL", "ALESSANDRO OMAR, PARTINICO", "GOMEZ RAMIREZ, ZULEIMA", "GONZALEZ CURBELO, GUACIMARA", "SAMUEL JHOSUE MOYA PAREDES", "PEREZ DOMINGUEZ, IRIEN", "TAVIO GARCIA, MARIA DOLORES", "BONILLA CURBELO, ANTONIO", "ZIZI BAGDAD, YUNAS", "SOSA ALMEIDA, NEREA", "MARTIN FONTES, JUAN GINES", "CORDERO QUESADA, ALEJANDRO", "CASADO FARIÑA, CARLOS JESUS", "CAMARA CAMARA, KADY", "LOPEZ CASTAÑEYRA, GUILLERMO", "GONZALEZ CALLERO, CRISTO MANUEL", "RODRIGUEZ CABRERA, ALVARO", "MARTIN GARCIA, RUYMAN", "MARRERO GARCIA, ALFREDO", "LARA DELGADO, GEMA", "SANCHEZ GARCIA, JENNIFER", "HERNANDEZ GARCIA, CARMEN ROSA", "SALCES ALVAREZ, MANUEL", "RUIZ HIGUERA, MANUEL JESUS", "VICTORIA HERNANDEZ, BRYAN STEVEN", "VIÑA TEJERA, JONAY MANUEL", "CERON MERINO, RAMON JOSE", "GALLARDO ORTIZ, JESUS", "GOMEZ MARTINEZ, JOANA IVETH", "COLAS MARCOS, XABIER", "GODDARD BAGSHAW, LUKE", "PEREZ CUBAS, ROMEN", "GASPAR GUERRERO, ANTONIO JESUS", "LOPEZ DIAZ, RUYMAN", "VEGAS VALLADARES, DARWIN", "ROSARIO MONTELONGO, LORENZO", "ARROCHA CEDRES, ADELTO JAVIER", "RODRIGUEZ MORALES, ITHAISA", "PEREZ GARCIA, XIOMARA", "ARMAS CISILIA, DANIEL", "MENDEZ MARRERO, ALFONSO", "OSPINA ANGEL, SHARON", "BARRIO MARGULLON, SORAYA", "JUAN PERDOMO, ABELARDO", "HERNADEZ MOYCANA", "HERNANDEZ RAIZA, OMAIRA"] }
 ];
+
+const UNITS_KEY = 'horas_extras_units_v1';
+const BACKUP_KEY = 'horas_extras_backup_v1';
+
+function getUnits() {
+  try {
+    const saved = localStorage.getItem(UNITS_KEY);
+    if (saved) return JSON.parse(saved);
+  } catch(e) {}
+  return JSON.parse(JSON.stringify(INITIAL_UNITS));
+}
+
+function saveUnits(units) {
+  localStorage.setItem(UNITS_KEY, JSON.stringify(units));
+}
+
+function addWorker(unitIdx, workerName) {
+  const units = getUnits();
+  if (units[unitIdx]) {
+    const upper = workerName.trim().toUpperCase();
+    if (!units[unitIdx].workers.includes(upper)) {
+      units[unitIdx].workers.push(upper);
+      saveUnits(units);
+    }
+  }
+}
+
+function removeWorker(unitIdx, workerIdx) {
+  const units = getUnits();
+  if (units[unitIdx] && units[unitIdx].workers[workerIdx]) {
+    units[unitIdx].workers.splice(workerIdx, 1);
+    saveUnits(units);
+  }
+}
 
 const STORAGE_KEY = 'horas_extras_log_v1';
 let records = loadRecords();
@@ -422,7 +550,7 @@ function applySort(recordsToSort) {
 function initDatalists() {
   const uSel = document.getElementById('recUnit');
   uSel.innerHTML = '';
-  INITIAL_UNITS.forEach(u => {
+  getUnits().forEach(u => {
     const opt = document.createElement('option');
     opt.value = u.unit;
     opt.textContent = u.unit.split(' - ')[0];
@@ -451,7 +579,7 @@ function filterWorkersByUnit() {
     return;
   }
 
-  const unitObj = INITIAL_UNITS.find(u => u.unit === unit);
+  const unitObj = getUnits().find(u => u.unit === unit);
   if (unitObj) {
     unitObj.workers.forEach(w => {
       const opt = document.createElement('option');
@@ -623,7 +751,7 @@ function initUnitFilter() {
   const uSel = document.getElementById('unitFilter');
   uSel.innerHTML = '<option value="all">🏢 Todas las Unidades</option>';
   
-  INITIAL_UNITS.forEach(u => {
+  getUnits().forEach(u => {
     const opt = document.createElement('option');
     opt.value = u.unit;
     opt.textContent = u.unit.split(' - ')[0];
@@ -1026,10 +1154,344 @@ function showToast(message, actionText, actionFn) {
   setTimeout(() => toast.classList.remove('show'), 10000);
 }
 
+// ========================
+// #7 Gestionar Trabajadores
+// ========================
+
+function openWorkersModal() {
+  const uSel = document.getElementById('manageUnitSelect');
+  uSel.innerHTML = '';
+  getUnits().forEach((u, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = u.unit.split(' - ')[0];
+    uSel.appendChild(opt);
+  });
+  renderWorkersList();
+  document.getElementById('workersModal').classList.add('open');
+}
+
+function renderWorkersList() {
+  const unitIdx = parseInt(document.getElementById('manageUnitSelect').value);
+  const units = getUnits();
+  const container = document.getElementById('workersList');
+  container.innerHTML = '';
+  if (!units[unitIdx]) return;
+  units[unitIdx].workers.forEach((w, wIdx) => {
+    container.innerHTML += `
+      <div class="worker-item">
+        <span style="font-size:13px;">${escHtml(w)}</span>
+        <button class="btn btn-sm btn-danger" onclick="removeWorker(${unitIdx},${wIdx});renderWorkersList();">✕</button>
+      </div>`;
+  });
+  if (units[unitIdx].workers.length === 0) {
+    container.innerHTML = '<div style="padding:16px;color:var(--muted);text-align:center;">Sin trabajadores</div>';
+  }
+}
+
+function addNewWorker() {
+  const unitIdx = parseInt(document.getElementById('manageUnitSelect').value);
+  const name = document.getElementById('newWorkerName').value;
+  if (!name.trim()) { alert('Introduce un nombre.'); return; }
+  addWorker(unitIdx, name);
+  document.getElementById('newWorkerName').value = '';
+  renderWorkersList();
+}
+
+// ========================
+// #16 Exportar Excel (.xlsx)
+// ========================
+
+function exportExcel() {
+  if (records.length === 0) { alert("No hay registros para exportar."); return; }
+  if (typeof XLSX === 'undefined') { alert("Librería Excel no cargada. Revisa tu conexión a internet."); return; }
+
+  const wb = XLSX.utils.book_new();
+
+  // Sheet 1: Registros
+  const rows1 = records.map(r => ({
+    'Trabajador': r.worker,
+    'Fecha': r.date,
+    'Unidad': r.unit,
+    'Cubre a': r.covering,
+    'Horas': r.hours,
+    'Motivo': r.reason,
+    'Registrado': r.createdAt
+  }));
+  const ws1 = XLSX.utils.json_to_sheet(rows1);
+  ws1['!cols'] = [{wch:35},{wch:14},{wch:40},{wch:30},{wch:8},{wch:25},{wch:20}];
+  XLSX.utils.book_append_sheet(wb, ws1, 'Registros');
+
+  // Sheet 2: Resumen por Trabajador
+  const workerData = {};
+  records.forEach(r => {
+    if (!workerData[r.worker]) workerData[r.worker] = { worker: r.worker, unit: r.unit, hours: 0, days: new Set() };
+    workerData[r.worker].hours += r.hours;
+    workerData[r.worker].days.add(r.date);
+  });
+  const rows2 = Object.values(workerData).map(d => ({
+    'Trabajador': d.worker,
+    'Unidad': d.unit.split(' - ')[0],
+    'Total Horas': d.hours,
+    'Días Trabajados': d.days.size,
+    'Promedio Horas/Día': (d.hours / d.days.size).toFixed(1)
+  }));
+  const ws2 = XLSX.utils.json_to_sheet(rows2);
+  ws2['!cols'] = [{wch:35},{wch:40},{wch:12},{wch:15},{wch:18}];
+  XLSX.utils.book_append_sheet(wb, ws2, 'Resumen Trabajador');
+
+  // Sheet 3: Resumen por Unidad
+  const unitData = {};
+  records.forEach(r => {
+    const uKey = r.unit;
+    if (!unitData[uKey]) unitData[uKey] = { unit: uKey, hours: 0, workers: new Set() };
+    unitData[uKey].hours += r.hours;
+    unitData[uKey].workers.add(r.worker);
+  });
+  const rows3 = Object.values(unitData).map(d => ({
+    'Unidad': d.unit,
+    'Total Horas': d.hours,
+    'Trabajadores Activos': d.workers.size
+  }));
+  const ws3 = XLSX.utils.json_to_sheet(rows3);
+  ws3['!cols'] = [{wch:45},{wch:12},{wch:18}];
+  XLSX.utils.book_append_sheet(wb, ws3, 'Resumen Unidad');
+
+  const today = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `control_horas_extras_${today}.xlsx`);
+}
+
+// ========================
+// #20 Resumen por Trabajador
+// ========================
+
+function openWorkerSummaryModal() {
+  const mSel = document.getElementById('summaryMonthFilter');
+  mSel.innerHTML = '<option value="all">Todos</option>';
+  const now = new Date();
+  const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const monthNum = d.getMonth() + 1;
+    const year = d.getFullYear();
+    const opt = document.createElement('option');
+    opt.value = `month_${year}_${monthNum}`;
+    opt.textContent = `${months[d.getMonth()]} ${year}`;
+    mSel.appendChild(opt);
+  }
+  renderWorkerSummary();
+  document.getElementById('workerSummaryModal').classList.add('open');
+}
+
+function renderWorkerSummary() {
+  const filter = document.getElementById('summaryMonthFilter').value;
+  let filtered = records;
+  if (filter.startsWith('month_')) {
+    const [, , year, month] = filter.split('_');
+    const monthNum = parseInt(month);
+    filtered = filtered.filter(r => {
+      const parts = r.date.split('/');
+      return parts.length === 3 && parseInt(parts[1]) === monthNum && parseInt(parts[2]) === parseInt(year);
+    });
+  }
+  const workerData = {};
+  filtered.forEach(r => {
+    if (!workerData[r.worker]) workerData[r.worker] = { worker: r.worker, unit: r.unit, hours: 0, days: new Set() };
+    workerData[r.worker].hours += r.hours;
+    workerData[r.worker].days.add(r.date);
+  });
+  const sorted = Object.values(workerData).sort((a, b) => b.hours - a.hours);
+  const tbody = document.getElementById('workerSummaryTbody');
+  tbody.innerHTML = '';
+  sorted.forEach(d => {
+    tbody.innerHTML += `
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:8px;font-weight:600;">${escHtml(d.worker)}</td>
+        <td style="padding:8px;font-size:11px;color:var(--muted);">${escHtml(d.unit.split(' - ')[0])}</td>
+        <td style="padding:8px;text-align:center;"><span class="badge badge-hours">+${d.hours}h</span></td>
+        <td style="padding:8px;text-align:center;">${d.days.size}</td>
+        <td style="padding:8px;text-align:center;">${(d.hours / d.days.size).toFixed(1)}h</td>
+      </tr>`;
+  });
+  if (sorted.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="padding:16px;text-align:center;color:var(--muted);">Sin datos para este período</td></tr>';
+  }
+}
+
+function exportWorkerSummaryExcel() {
+  if (typeof XLSX === 'undefined') { alert("Librería Excel no cargada."); return; }
+  const filter = document.getElementById('summaryMonthFilter').value;
+  let filtered = records;
+  if (filter.startsWith('month_')) {
+    const [, , year, month] = filter.split('_');
+    const monthNum = parseInt(month);
+    filtered = filtered.filter(r => {
+      const parts = r.date.split('/');
+      return parts.length === 3 && parseInt(parts[1]) === monthNum && parseInt(parts[2]) === parseInt(year);
+    });
+  }
+  const workerData = {};
+  filtered.forEach(r => {
+    if (!workerData[r.worker]) workerData[r.worker] = { worker: r.worker, unit: r.unit, hours: 0, days: new Set() };
+    workerData[r.worker].hours += r.hours;
+    workerData[r.worker].days.add(r.date);
+  });
+  const rows = Object.values(workerData).sort((a, b) => b.hours - a.hours).map(d => ({
+    'Trabajador': d.worker,
+    'Unidad': d.unit.split(' - ')[0],
+    'Total Horas': d.hours,
+    'Días Trabajados': d.days.size,
+    'Promedio Horas/Día': (d.hours / d.days.size).toFixed(1)
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [{wch:35},{wch:40},{wch:12},{wch:15},{wch:18}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Resumen Trabajador');
+  XLSX.writeFile(wb, `resumen_trabajador_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+// ========================
+// #12 Vista Calendario
+// ========================
+
+let calendarYear, calendarMonth;
+
+function openCalendarModal() {
+  const now = new Date();
+  calendarYear = now.getFullYear();
+  calendarMonth = now.getMonth();
+  renderCalendar();
+  document.getElementById('calendarModal').classList.add('open');
+}
+
+function renderCalendar() {
+  const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const days = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+  const container = document.getElementById('calendarContainer');
+  
+  // Build record map by date
+  const recordMap = {};
+  records.forEach(r => {
+    const parts = r.date.split('/');
+    if (parts.length === 3) {
+      const key = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+      recordMap[key] = (recordMap[key] || 0) + 1;
+    }
+  });
+
+  const today = new Date();
+  const todayKey = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">`;
+  html += `<button class="btn btn-sm" onclick="changeCalMonth(-1)">◀</button>`;
+  html += `<b style="font-size:16px;">${months[calendarMonth]} ${calendarYear}</b>`;
+  html += `<button class="btn btn-sm" onclick="changeCalMonth(1)">▶</button>`;
+  html += `</div>`;
+  html += `<div class="calendar-grid">`;
+  days.forEach(d => { html += `<div class="calendar-day-header">${d}</div>`; });
+
+  const firstDay = new Date(calendarYear, calendarMonth, 1);
+  let startDay = firstDay.getDay() - 1;
+  if (startDay < 0) startDay = 6;
+  const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+
+  for (let i = 0; i < startDay; i++) html += `<div></div>`;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const key = `${calendarYear}-${String(calendarMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const count = recordMap[key] || 0;
+    const isToday = key === todayKey;
+    const classes = ['calendar-day'];
+    if (isToday) classes.push('today');
+    if (count > 0) classes.push('has-records');
+    html += `<div class="${classes.join(' ')}" onclick="showCalDayDetail(${calendarYear},${calendarMonth},${d})">
+      <div style="font-weight:600;">${d}</div>
+      ${count > 0 ? `<div style="font-size:10px;color:var(--primary);">${count} registro${count > 1 ? 's' : ''}</div>` : ''}
+    </div>`;
+  }
+  html += `</div>`;
+  html += `<div id="calDayDetail" style="margin-top:12px;"></div>`;
+  container.innerHTML = html;
+}
+
+function changeCalMonth(delta) {
+  calendarMonth += delta;
+  if (calendarMonth > 11) { calendarMonth = 0; calendarYear++; }
+  if (calendarMonth < 0) { calendarMonth = 11; calendarYear--; }
+  renderCalendar();
+}
+
+function showCalDayDetail(year, month, day) {
+  const dateStr = `${String(day).padStart(2,'0')}/${String(month+1).padStart(2,'0')}/${year}`;
+  const dayRecords = records.filter(r => r.date === dateStr);
+  const detail = document.getElementById('calDayDetail');
+  if (dayRecords.length === 0) {
+    detail.innerHTML = `<div style="padding:12px;text-align:center;color:var(--muted);font-size:13px;">Sin registros el ${dateStr}</div>`;
+    return;
+  }
+  let html = `<div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;"><div style="padding:8px 12px;background:var(--primary-glow);font-weight:600;font-size:13px;">📅 ${dateStr} — ${dayRecords.length} registro${dayRecords.length > 1 ? 's' : ''}</div>`;
+  dayRecords.forEach(r => {
+    html += `<div style="padding:8px 12px;border-top:1px solid var(--border);font-size:12px;">
+      <b>${escHtml(r.worker)}</b> <span class="badge badge-hours">+${r.hours}h</span><br>
+      <span style="color:var(--muted);">${escHtml(r.unit.split(' - ')[0])}</span>
+    </div>`;
+  });
+  html += `</div>`;
+  detail.innerHTML = html;
+}
+
+// ========================
+// #24 Backup Automático
+// ========================
+
+let backupInterval = null;
+
+function initAutoBackup() {
+  // Run backup immediately
+  createBackup();
+  // Then every 5 minutes
+  backupInterval = setInterval(createBackup, 5 * 60 * 1000);
+  updateBackupStatus();
+}
+
+function createBackup() {
+  const data = { records: records, units: getUnits(), savedAt: new Date().toISOString() };
+  localStorage.setItem(BACKUP_KEY, JSON.stringify(data));
+  updateBackupStatus();
+}
+
+function restoreBackup() {
+  const raw = localStorage.getItem(BACKUP_KEY);
+  if (!raw) { alert('No hay backup disponible.'); return; }
+  try {
+    const data = JSON.parse(raw);
+    const count = data.records ? data.records.length : 0;
+    if (!confirm(`Restaurar backup del ${new Date(data.savedAt).toLocaleString('es-ES')} con ${count} registros? Esto reemplazará los datos actuales.`)) return;
+    if (data.records) { records = data.records; saveRecords(); }
+    if (data.units) saveUnits(data.units);
+    render();
+    alert('✅ Backup restaurado correctamente.');
+  } catch(e) { alert('Error al restaurar el backup.'); }
+}
+
+function updateBackupStatus() {
+  const el = document.getElementById('backupStatus');
+  if (!el) return;
+  const raw = localStorage.getItem(BACKUP_KEY);
+  if (!raw) { el.innerHTML = ''; return; }
+  try {
+    const data = JSON.parse(raw);
+    const savedAt = new Date(data.savedAt);
+    const diffMin = Math.round((Date.now() - savedAt.getTime()) / 60000);
+    el.innerHTML = `💾 Backup: hace ${diffMin}min`;
+    el.className = 'backup-status ' + (diffMin < 10 ? 'backup-ok' : 'backup-warn');
+  } catch(e) { el.innerHTML = ''; }
+}
+
 initDatalists();
 initMonthFilter();
 initUnitFilter();
 render();
+initAutoBackup();
 </script>
 </body>
 </html>
