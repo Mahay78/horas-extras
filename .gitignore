@@ -1,0 +1,21 @@
+# Editor / IDE
+*.log
+*.swp
+*.swo
+.idea/
+.vscode/
+*.code-workspace
+
+# Build / cache
+node_modules/
+dist/
+build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Otros
+*.xlsx
+/.agents/
+skills-lock.json
