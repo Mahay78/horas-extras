@@ -417,15 +417,19 @@ tr:hover td { background: var(--card-hover); }
       <label>Seleccionar Unidad</label>
       <select id="manageUnitSelect" onchange="renderWorkersList()"></select>
     </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <input type="text" id="editUnitName" placeholder="Nombre de la unidad" style="flex:1;">
+      <button class="btn btn-sm" onclick="editUnit()">✏️ Editar Indicativo</button>
+    </div>
     <div style="max-height:300px;overflow-y:auto;margin-bottom:16px;border:1px solid var(--border);border-radius:8px;">
       <div id="workersList"></div>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:16px;">
-      <div class="form-row" style="flex:2;margin:0;">
+      <div style="flex:1;">
         <input type="text" id="newWorkerName" placeholder="APELLIDOS, NOMBRE" style="width:100%;">
       </div>
       <button class="btn btn-primary" onclick="addNewWorker()">+ Trabajador</button>
-      <button class="btn btn-danger" onclick="deleteUnit()">🗑️ Eliminar Unidad</button>
+      <button class="btn btn-danger" onclick="deleteUnit()">🗑️ Eliminar</button>
     </div>
     <hr style="border:none;border-top:1px solid var(--border);margin:16px 0;">
     <h3 style="font-size:14px;margin-bottom:12px;">🚑 Agregar Nueva Unidad</h3>
@@ -435,10 +439,10 @@ tr:hover td { background: var(--card-hover); }
       <button class="btn btn-sm" onclick="addPresetUnit('TSNU 12H - AMBULANCIA DE 10H A 22H')">+ TSNU 12H (10-22)</button>
     </div>
     <div class="form-row">
-      <div class="form-group" style="flex:2;">
+      <div style="flex:2;">
         <input type="text" id="newUnitName" placeholder="Nombre personalizado (ej: UNIDAD SVB 1400 LANZAROTE - 24H)">
       </div>
-      <div class="form-group" style="flex:1;">
+      <div style="flex:1;">
         <button class="btn" onclick="addCustomUnit()" style="width:100%;">+ Unit Custom</button>
       </div>
     </div>
@@ -1207,6 +1211,8 @@ function openWorkersModal() {
 function renderWorkersList() {
   const unitIdx = parseInt(document.getElementById('manageUnitSelect').value);
   const units = getUnits();
+  const editInput = document.getElementById('editUnitName');
+  if (units[unitIdx]) editInput.value = units[unitIdx].unit;
   const container = document.getElementById('workersList');
   container.innerHTML = '';
   if (!units[unitIdx]) return;
@@ -1220,6 +1226,26 @@ function renderWorkersList() {
   if (units[unitIdx].workers.length === 0) {
     container.innerHTML = '<div style="padding:16px;color:var(--muted);text-align:center;">Sin trabajadores</div>';
   }
+}
+
+function editUnit() {
+  const unitIdx = parseInt(document.getElementById('manageUnitSelect').value);
+  const newName = document.getElementById('editUnitName').value.trim().toUpperCase();
+  if (!newName) { alert('Introduce un nombre para la unidad.'); return; }
+  const units = getUnits();
+  if (!units[unitIdx]) return;
+  if (units.some((u, i) => i !== unitIdx && u.unit === newName)) {
+    alert('Ya existe otra unidad con ese nombre.');
+    return;
+  }
+  const oldName = units[unitIdx].unit;
+  units[unitIdx].unit = newName;
+  saveUnits(units);
+  // Also update records that reference this unit
+  records.forEach(r => { if (r.unit === oldName) r.unit = newName; });
+  saveRecords();
+  openWorkersModal();
+  render();
 }
 
 function addNewWorker() {
