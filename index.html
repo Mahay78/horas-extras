@@ -420,14 +420,26 @@ tr:hover td { background: var(--card-hover); }
     <div style="max-height:300px;overflow-y:auto;margin-bottom:16px;border:1px solid var(--border);border-radius:8px;">
       <div id="workersList"></div>
     </div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <div class="form-row" style="flex:2;margin:0;">
+        <input type="text" id="newWorkerName" placeholder="APELLIDOS, NOMBRE" style="width:100%;">
+      </div>
+      <button class="btn btn-primary" onclick="addNewWorker()">+ Trabajador</button>
+      <button class="btn btn-danger" onclick="deleteUnit()">🗑️ Eliminar Unidad</button>
+    </div>
+    <hr style="border:none;border-top:1px solid var(--border);margin:16px 0;">
+    <h3 style="font-size:14px;margin-bottom:12px;">🚑 Agregar Nueva Unidad</h3>
+    <div class="form-row" style="margin-bottom:8px;">
+      <button class="btn btn-sm" onclick="addPresetUnit('TSNU 24H - AMBULANCIA')">+ TSNU 24H</button>
+      <button class="btn btn-sm" onclick="addPresetUnit('TSNU 12H - AMBULANCIA DE 07H A 19H')">+ TSNU 12H (07-19)</button>
+      <button class="btn btn-sm" onclick="addPresetUnit('TSNU 12H - AMBULANCIA DE 10H A 22H')">+ TSNU 12H (10-22)</button>
+    </div>
     <div class="form-row">
       <div class="form-group" style="flex:2;">
-        <label>Nuevo Trabajador</label>
-        <input type="text" id="newWorkerName" placeholder="APELLIDOS, NOMBRE">
+        <input type="text" id="newUnitName" placeholder="Nombre personalizado (ej: UNIDAD SVB 1400 LANZAROTE - 24H)">
       </div>
       <div class="form-group" style="flex:1;">
-        <label>&nbsp;</label>
-        <button class="btn btn-primary" onclick="addNewWorker()" style="width:100%;">+ Agregar</button>
+        <button class="btn" onclick="addCustomUnit()" style="width:100%;">+ Unit Custom</button>
       </div>
     </div>
     <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
@@ -447,7 +459,10 @@ const INITIAL_UNITS = [
   { unit: "UNIDAD SVB 1314 PLAYABLANCA - 24H/DIA DE 09H A 09H", workers: ["TIRADO MARTIN, ALEJANDRO", "DASA TALAVERA, ALEJANDRA", "RODRIGUEZ CABRERA, CRISTO DE JESUS", "MENA BARANDICA, ELEN DAIAN", "FONDON RODRIGUEZ, GONZALO", "SANCHEZ MARTINEZ, JORGE ANTONIO", "CEDRES GONZALEZ, HECTOR", "MARTIN LEMES, MARIA MACARENA"] },
   { unit: "UNIDAD SVB 1315 ARRIETA - 24H/DIA DE 09H A 09H", workers: ["GARCIA CARBALLO, MIGUEL ANGEL", "TABARES MARQUEZ, TEXENERY ROSA", "PEREZ CUADROS, EVA MARIA", "MEHAND MARTIN, YASSIN", "GONZALEZ CALLERO, FRANCISCO JAVIER", "MARTIN ARMAS, ROBERTO", "BARREIRO DO CARMO, JOAQUIN", "CEDRES LEMES, MARTIN MANUEL"] },
   { unit: "UNIDAD SVA 1391 PLAYABLANCA - 24H/DIA DE 09H A 09H", workers: ["ALGUACIL MIRALLES, ALEJANDRO", "ARCA VASQUEZ, BRYAN", "MOREIRA ARMAS, ANTONIO", "ROSARIO GALINDO, ELISABET DEL PINO", "RODRIGUEZ NOZAL, MARIA VALLE", "FONDON RODRIGUEZ, OSCAR", "ALVAREZ PEREZ, JAZMINA MARIA", "SILVA HERNANDEZ, ACOIDAN"] },
-  { unit: "UNIDADES TSNU DE L/V 07H A 15H", workers: ["CEDRES DORTA, TANIA", "SCHLOSSER, MARIE", "MORENO GÜEMES, ROCIO", "BOLAÑOS ARANDA, JOSE IGNACIO", "MEDINA CASANOVA, ADRIAN", "CABRERA MARQUEZ, MIGUEL ANGEL", "MARTIN FONTES, IBAN", "CABRERA SUAREZ, NATANAEL", "ALESSANDRO OMAR, PARTINICO", "GOMEZ RAMIREZ, ZULEIMA", "GONZALEZ CURBELO, GUACIMARA", "SAMUEL JHOSUE MOYA PAREDES", "PEREZ DOMINGUEZ, IRIEN", "TAVIO GARCIA, MARIA DOLORES", "BONILLA CURBELO, ANTONIO", "ZIZI BAGDAD, YUNAS", "SOSA ALMEIDA, NEREA", "MARTIN FONTES, JUAN GINES", "CORDERO QUESADA, ALEJANDRO", "CASADO FARIÑA, CARLOS JESUS", "CAMARA CAMARA, KADY", "LOPEZ CASTAÑEYRA, GUILLERMO", "GONZALEZ CALLERO, CRISTO MANUEL", "RODRIGUEZ CABRERA, ALVARO", "MARTIN GARCIA, RUYMAN", "MARRERO GARCIA, ALFREDO", "LARA DELGADO, GEMA", "SANCHEZ GARCIA, JENNIFER", "HERNANDEZ GARCIA, CARMEN ROSA", "SALCES ALVAREZ, MANUEL", "RUIZ HIGUERA, MANUEL JESUS", "VICTORIA HERNANDEZ, BRYAN STEVEN", "VIÑA TEJERA, JONAY MANUEL", "CERON MERINO, RAMON JOSE", "GALLARDO ORTIZ, JESUS", "GOMEZ MARTINEZ, JOANA IVETH", "COLAS MARCOS, XABIER", "GODDARD BAGSHAW, LUKE", "PEREZ CUBAS, ROMEN", "GASPAR GUERRERO, ANTONIO JESUS", "LOPEZ DIAZ, RUYMAN", "VEGAS VALLADARES, DARWIN", "ROSARIO MONTELONGO, LORENZO", "ARROCHA CEDRES, ADELTO JAVIER", "RODRIGUEZ MORALES, ITHAISA", "PEREZ GARCIA, XIOMARA", "ARMAS CISILIA, DANIEL", "MENDEZ MARRERO, ALFONSO", "OSPINA ANGEL, SHARON", "BARRIO MARGULLON, SORAYA", "JUAN PERDOMO, ABELARDO", "HERNADEZ MOYCANA", "HERNANDEZ RAIZA, OMAIRA"] }
+  { unit: "UNIDADES TSNU DE L/V 07H A 15H", workers: ["CEDRES DORTA, TANIA", "SCHLOSSER, MARIE", "MORENO GÜEMES, ROCIO", "BOLAÑOS ARANDA, JOSE IGNACIO", "MEDINA CASANOVA, ADRIAN", "CABRERA MARQUEZ, MIGUEL ANGEL", "MARTIN FONTES, IBAN", "CABRERA SUAREZ, NATANAEL", "ALESSANDRO OMAR, PARTINICO", "GOMEZ RAMIREZ, ZULEIMA", "GONZALEZ CURBELO, GUACIMARA", "SAMUEL JHOSUE MOYA PAREDES", "PEREZ DOMINGUEZ, IRIEN", "TAVIO GARCIA, MARIA DOLORES", "BONILLA CURBELO, ANTONIO", "ZIZI BAGDAD, YUNAS", "SOSA ALMEIDA, NEREA", "MARTIN FONTES, JUAN GINES", "CORDERO QUESADA, ALEJANDRO", "CASADO FARIÑA, CARLOS JESUS", "CAMARA CAMARA, KADY", "LOPEZ CASTAÑEYRA, GUILLERMO", "GONZALEZ CALLERO, CRISTO MANUEL", "RODRIGUEZ CABRERA, ALVARO", "MARTIN GARCIA, RUYMAN", "MARRERO GARCIA, ALFREDO", "LARA DELGADO, GEMA", "SANCHEZ GARCIA, JENNIFER", "HERNANDEZ GARCIA, CARMEN ROSA", "SALCES ALVAREZ, MANUEL", "RUIZ HIGUERA, MANUEL JESUS", "VICTORIA HERNANDEZ, BRYAN STEVEN", "VIÑA TEJERA, JONAY MANUEL", "CERON MERINO, RAMON JOSE", "GALLARDO ORTIZ, JESUS", "GOMEZ MARTINEZ, JOANA IVETH", "COLAS MARCOS, XABIER", "GODDARD BAGSHAW, LUKE", "PEREZ CUBAS, ROMEN", "GASPAR GUERRERO, ANTONIO JESUS", "LOPEZ DIAZ, RUYMAN", "VEGAS VALLADARES, DARWIN", "ROSARIO MONTELONGO, LORENZO", "ARROCHA CEDRES, ADELTO JAVIER", "RODRIGUEZ MORALES, ITHAISA", "PEREZ GARCIA, XIOMARA", "ARMAS CISILIA, DANIEL", "MENDEZ MARRERO, ALFONSO", "OSPINA ANGEL, SHARON", "BARRIO MARGULLON, SORAYA", "JUAN PERDOMO, ABELARDO", "HERNADEZ MOYCANA", "HERNANDEZ RAIZA, OMAIRA"] },
+  { unit: "TSNU 24H - AMBULANCIA", workers: [] },
+  { unit: "TSNU 12H - AMBULANCIA DE 07H A 19H", workers: [] },
+  { unit: "TSNU 12H - AMBULANCIA DE 10H A 22H", workers: [] }
 ];
 
 const UNITS_KEY = 'horas_extras_units_v1';
@@ -482,6 +497,24 @@ function removeWorker(unitIdx, workerIdx) {
     units[unitIdx].workers.splice(workerIdx, 1);
     saveUnits(units);
   }
+}
+
+function addUnit(unitName) {
+  const units = getUnits();
+  const upper = unitName.trim().toUpperCase();
+  if (!upper) return false;
+  if (units.some(u => u.unit === upper)) { alert('Esa unidad ya existe.'); return false; }
+  units.push({ unit: upper, workers: [] });
+  saveUnits(units);
+  return true;
+}
+
+function removeUnit(unitIdx) {
+  const units = getUnits();
+  if (!units[unitIdx]) return;
+  if (!confirm(`¿Eliminar la unidad "${units[unitIdx].unit}"? Se borrarán todos sus trabajadores.`)) return;
+  units.splice(unitIdx, 1);
+  saveUnits(units);
 }
 
 const STORAGE_KEY = 'horas_extras_log_v1';
@@ -1196,6 +1229,27 @@ function addNewWorker() {
   addWorker(unitIdx, name);
   document.getElementById('newWorkerName').value = '';
   renderWorkersList();
+}
+
+function addPresetUnit(name) {
+  if (addUnit(name)) {
+    openWorkersModal();
+  }
+}
+
+function addCustomUnit() {
+  const name = document.getElementById('newUnitName').value;
+  if (!name.trim()) { alert('Introduce un nombre para la unidad.'); return; }
+  if (addUnit(name)) {
+    document.getElementById('newUnitName').value = '';
+    openWorkersModal();
+  }
+}
+
+function deleteUnit() {
+  const unitIdx = parseInt(document.getElementById('manageUnitSelect').value);
+  removeUnit(unitIdx);
+  openWorkersModal();
 }
 
 // ========================
