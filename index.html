@@ -571,6 +571,7 @@ tr { position: relative; }
           <button onclick="document.getElementById('importJSONInput').click()">📤 Importar JSON</button>
           <button onclick="printReport()">🖨️ PDF</button>
           <button onclick="openEmailPDFModal()">✉️ Enviar PDF</button>
+          <button onclick="shareWhatsApp()">💬 WhatsApp</button>
         </div>
       </div>
       
@@ -1354,6 +1355,51 @@ function exportCSV() {
   const today = new Date().toISOString().slice(0,10);
   a.download = `control_horas_extras_${today}.csv`;
    a.click();
+}
+
+function shareWhatsApp() {
+  if (records.length === 0) { showToastMsg('No hay registros para compartir.', 'warning'); return; }
+
+  const now = new Date();
+  const currentMonth = now.getMonth() + 1;
+  const currentYear = now.getFullYear();
+
+  // Filter current month records
+  const monthRecords = records.filter(r => {
+    const parts = r.date.split('/');
+    return parts.length === 3 && parseInt(parts[1]) === currentMonth && parseInt(parts[2]) === currentYear;
+  });
+
+  const totalHours = monthRecords.reduce((sum, r) => sum + r.hours, 0);
+  const uniqueWorkers = new Set(monthRecords.map(r => r.worker)).size;
+  const coverages = monthRecords.filter(r => r.covering && !r.covering.includes('N/A')).length;
+
+  // Top 5 workers
+  const workerTotals = {};
+  monthRecords.forEach(r => { workerTotals[r.worker] = (workerTotals[r.worker] || 0) + r.hours; });
+  const topWorkers = Object.entries(workerTotals).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  // Recent 5 records
+  const recent = monthRecords.slice(0, 5);
+
+  let msg = `⏱️ *Resumen Horas Extras — ${now.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}*\n\n`;
+  msg += `📊 *Total:* ${totalHours}h | ${uniqueWorkers} trabajadores | ${coverages} coberturas\n\n`;
+
+  if (topWorkers.length > 0) {
+    msg += `👑 *Top trabajadores:*\n`;
+    topWorkers.forEach(([w, h]) => { msg += `  • ${w.split(',')[0]}: +${h}h\n`; });
+    msg += `\n`;
+  }
+
+  if (recent.length > 0) {
+    msg += `📋 *Últimos registros:*\n`;
+    recent.forEach(r => { msg += `  • ${r.date} — ${r.worker.split(',')[0]} +${r.hours}h\n`; });
+  }
+
+  msg += `\n_Generado con Control de Horas Extras_`;
+
+  const encoded = encodeURIComponent(msg);
+  window.open(`https://wa.me/?text=${encoded}`, '_blank');
 }
 
 function exportJSON() {
