@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="Aplicación PWA para el control de horas extras y coberturas de ambulancias">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' cdnjs.cloudflare.com cdn.sheetjs.com 'unsafe-eval'; style-src 'self' 'unsafe-inline' fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' fonts.gstatic.com cdnjs.cloudflare.com; connect-src 'self' https:;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' cdnjs.cloudflare.com cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' fonts.gstatic.com cdnjs.cloudflare.com; connect-src 'self' https:;">
 <meta name="theme-color" content="#0f172a">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -33,70 +33,109 @@
     <div class="logo" aria-label="Logo">⏱️ Control de Horas Extras</div>
     <nav class="header-actions" aria-label="Acciones principales">
       <div class="dropdown">
-        <button class="btn btn-icon" onclick="toggleDropdown('menuViews')" aria-haspopup="menu" aria-expanded="false" aria-label="Vistas">📊</button>
+        <button class="btn btn-icon" data-action="toggle-dropdown" data-target="menuViews" aria-haspopup="menu" aria-expanded="false" aria-label="Vistas">📊</button>
         <div class="dropdown-menu" id="menuViews" role="menu">
-          <button onclick="openChartsModal()" role="menuitem">📈 Gráficos</button>
-          <button onclick="openCalendarModal()" role="menuitem">📅 Calendario</button>
-          <button onclick="openWorkerSummaryModal()" role="menuitem">👤 Resumen Trabajador</button>
+          <button data-action="open-charts" role="menuitem">📈 Gráficos</button>
+          <button data-action="open-calendar" role="menuitem">📅 Calendario</button>
+          <button data-action="open-worker-summary" role="menuitem">👤 Resumen Trabajador</button>
         </div>
       </div>
 
       <div class="dropdown">
-        <button class="btn btn-icon" onclick="toggleDropdown('menuExport')" aria-haspopup="menu" aria-expanded="false" aria-label="Exportar">📥</button>
+        <button class="btn btn-icon" data-action="toggle-dropdown" data-target="menuExport" aria-haspopup="menu" aria-expanded="false" aria-label="Exportar">📥</button>
         <div class="dropdown-menu" id="menuExport" role="menu">
-          <button onclick="exportExcel()" role="menuitem">📊 Excel (.xlsx)</button>
-          <button onclick="exportJSON()" role="menuitem">💾 JSON Backup</button>
-          <button onclick="document.getElementById('importJSONInput').click()" role="menuitem">📤 Importar JSON</button>
-          <button onclick="exportCSV()" role="menuitem">📄 CSV</button>
-          <button onclick="printReport()" role="menuitem">🖨️ Imprimir PDF</button>
-          <button onclick="openEmailPDFModal()" role="menuitem">✉️ Enviar PDF Correo</button>
-          <button onclick="shareWhatsApp()" role="menuitem">💬 WhatsApp</button>
+          <button data-action="export-excel" role="menuitem">📊 Excel (.xlsx)</button>
+          <button data-action="export-json" role="menuitem">💾 JSON Backup</button>
+          <button data-action="import-json" role="menuitem">📤 Importar JSON</button>
+          <button data-action="export-csv" role="menuitem">📄 CSV</button>
+          <button data-action="print-report" role="menuitem">🖨️ Imprimir PDF</button>
+          <button data-action="open-email-pdf" role="menuitem">✉️ Enviar PDF Correo</button>
+          <button data-action="share-whatsapp" role="menuitem">💬 WhatsApp</button>
         </div>
       </div>
 
       <div class="dropdown">
-        <button class="btn btn-icon" onclick="toggleDropdown('menuManage')" aria-haspopup="menu" aria-expanded="false" aria-label="Gestionar">⚙️</button>
+        <button class="btn btn-icon" data-action="toggle-dropdown" data-target="menuManage" aria-haspopup="menu" aria-expanded="false" aria-label="Gestionar">⚙️</button>
         <div class="dropdown-menu" id="menuManage" role="menu">
-          <button onclick="openWorkersModal()" role="menuitem">👥 Trabajadores / Unidades</button>
-          <button onclick="createBackup()" role="menuitem">💾 Crear Backup</button>
-          <button onclick="restoreBackup()" role="menuitem">🔄 Restaurar Backup</button>
-          <button onclick="installPWA()" id="installMenuBtn" style="display:none;" role="menuitem">📲 Instalar App</button>
+          <button data-action="open-workers" role="menuitem">👥 Trabajadores / Unidades</button>
+          <button data-action="create-backup" role="menuitem">💾 Crear Backup</button>
+          <button data-action="restore-backup" role="menuitem">🔄 Restaurar Backup</button>
+          <button data-action="install-pwa" id="installMenuBtn" style="display:none;" role="menuitem">📲 Instalar App</button>
         </div>
       </div>
 
-      <button class="btn btn-icon" onclick="toggleTheme()" id="themeBtn" title="Cambiar tema" aria-label="Cambiar tema">🌙</button>
-      <button class="btn btn-icon btn-danger" onclick="clearAllRecords()" title="Vaciar lista" aria-label="Vaciar lista de registros">🗑️</button>
-      <input type="file" id="importJSONInput" accept=".json" style="display:none" onchange="importJSON()" aria-label="Importar archivo JSON">
+      <button class="btn btn-icon" data-action="toggle-theme" id="themeBtn" title="Cambiar tema" aria-label="Cambiar tema">🌙</button>
+      <button class="btn btn-icon btn-danger" data-action="clear-all-records" title="Vaciar lista" aria-label="Vaciar lista de registros">🗑️</button>
+      <input type="file" id="importJSONInput" accept=".json" style="display:none" data-action="json-file-selected" aria-label="Importar archivo JSON">
       <div id="backupStatus" class="backup-status" aria-live="polite"></div>
     </nav>
   </div>
 </header>
 
 <!-- FAB -->
-<button class="fab" onclick="openRecordModal()" title="➕ Registrar Horas" aria-label="Registrar nueva hora extra">+</button>
+<button class="fab" data-action="open-record-modal" title="➕ Registrar Horas" aria-label="Registrar nueva hora extra">+</button>
 
 <!-- Scroll to top FAB (hidden until scrolled) -->
-<button class="fab fab-secondary" id="scrollToTopBtn" onclick="window.scrollTo({top:0,behavior:'smooth'})" style="display:none;" title="Volver arriba" aria-label="Volver al inicio de la página">↑</button>
+<button class="fab fab-secondary" id="scrollToTopBtn" data-action="scroll-top" style="display:none;" title="Volver arriba" aria-label="Volver al inicio de la página">↑</button>
+
+<!-- Sidebar de navegación lateral (PC) -->
+<aside class="sidebar" aria-label="Navegación principal">
+  <nav class="sidebar-nav">
+    <button class="sidebar-btn" data-action="open-record-modal" title="Registrar Horas">
+      <span class="sidebar-icon">➕</span>
+      <span class="sidebar-label">Registrar</span>
+    </button>
+    <button class="sidebar-btn" data-action="open-calendar" title="Calendario">
+      <span class="sidebar-icon">📅</span>
+      <span class="sidebar-label">Calendario</span>
+    </button>
+    <button class="sidebar-btn" data-action="open-charts" title="Gráficos">
+      <span class="sidebar-icon">📊</span>
+      <span class="sidebar-label">Gráficos</span>
+    </button>
+    <button class="sidebar-btn" data-action="open-worker-summary" title="Resumen por Trabajador">
+      <span class="sidebar-icon">👤</span>
+      <span class="sidebar-label">Resumen</span>
+    </button>
+    <button class="sidebar-btn" data-action="open-workers" title="Gestionar Trabajadores/Unidades">
+      <span class="sidebar-icon">👥</span>
+      <span class="sidebar-label">Trabajadores</span>
+    </button>
+    <div class="sidebar-spacer"></div>
+    <button class="sidebar-btn" data-action="export-excel" title="Exportar Excel">
+      <span class="sidebar-icon">📥</span>
+      <span class="sidebar-label">Excel</span>
+    </button>
+    <button class="sidebar-btn" data-action="open-email-pdf" title="Enviar PDF">
+      <span class="sidebar-icon">✉️</span>
+      <span class="sidebar-label">Enviar PDF</span>
+    </button>
+    <button class="sidebar-btn" data-action="share-whatsapp" title="Compartir por WhatsApp">
+      <span class="sidebar-icon">💬</span>
+      <span class="sidebar-label">WhatsApp</span>
+    </button>
+  </nav>
+</aside>
 
 <main id="main-content" class="container" role="main">
 
   <!-- Resumen de Stats -->
   <section class="stats-grid" aria-label="Resumen de horas extras">
-    <button class="stat-box stat-box-btn" onclick="filterByStat('total')" title="Ver todos los registros" aria-label="Total horas extras - clic para ver todos">
+    <button class="stat-box stat-box-btn" data-action="filter-stat" data-stat="total" title="Ver todos los registros" aria-label="Total horas extras - clic para ver todos">
       <span class="title">Total Horas Extras</span>
       <span class="num" id="statTotal">0h</span>
       <div class="bar" aria-hidden="true"><div class="bar-fill" style="width:0%"></div></div>
     </button>
-    <button class="stat-box stat-box-btn" onclick="filterByStat('workers')" title="Ver resumen por trabajador" aria-label="Trabajadores - clic para ver resumen">
+    <button class="stat-box stat-box-btn" data-action="filter-stat" data-stat="workers" title="Ver resumen por trabajador" aria-label="Trabajadores - clic para ver resumen">
       <span class="title">Trabajadores Con Extras</span>
       <span class="num" id="statWorkers">0</span>
       <div class="bar" aria-hidden="true"><div class="bar-fill" style="width:0%"></div></div>
     </button>
-    <button class="stat-box stat-box-btn" onclick="openWorkerSummaryModal()" title="Ver resumen por trabajador" style="border-color:var(--warning)" aria-label="Máx horas - clic para ver resumen">
+    <button class="stat-box stat-box-btn" data-action="open-worker-summary" title="Ver resumen por trabajador" style="border-color:var(--warning)" aria-label="Máx horas - clic para ver resumen">
       <span class="title" style="color:var(--warning)">👑 Máx. Horas Extras</span>
       <span class="num" id="statMaxWorker" style="color:var(--warning);font-size:15px;margin-top:4px;">-</span>
     </button>
-    <button class="stat-box stat-box-btn" onclick="filterByStat('coverages')" title="Ver solo coberturas" aria-label="Total coberturas - clic para filtrar">
+    <button class="stat-box stat-box-btn" data-action="filter-stat" data-stat="coverages" title="Ver solo coberturas" aria-label="Total coberturas - clic para filtrar">
       <span class="title">Total Coberturas</span>
       <span class="num" id="statCoverages">0</span>
       <div class="bar" aria-hidden="true"><div class="bar-fill" style="width:0%"></div></div>
@@ -108,11 +147,11 @@
 
   <!-- Barra de Filtro de Mes, Unidad y Búsqueda -->
   <section class="top-bar" aria-label="Filtros">
-    <input type="search" class="search-input" style="flex:2;" id="searchInput" placeholder="🔍 Buscar por trabajador, unidad o persona a la que cubre..." oninput="currentPage=1;render()" autocomplete="off" aria-label="Buscar registros">
-    <select class="search-input" style="flex:1;" id="monthFilter" onchange="currentPage=1;render()" aria-label="Filtrar por mes">
+    <input type="search" class="search-input" style="flex:2;" id="searchInput" placeholder="🔍 Buscar por trabajador, unidad o persona a la que cubre..." autocomplete="off" aria-label="Buscar registros">
+    <select class="search-input" style="flex:1;" id="monthFilter" aria-label="Filtrar por mes">
       <option value="all">📅 Todas las Fechas</option>
     </select>
-    <select class="search-input" style="flex:1;" id="unitFilter" onchange="currentPage=1;render()" aria-label="Filtrar por unidad">
+    <select class="search-input" style="flex:1;" id="unitFilter" aria-label="Filtrar por unidad">
       <option value="all">🏢 Todas las Unidades</option>
     </select>
   </section>
@@ -123,11 +162,11 @@
       <table>
         <thead>
           <tr>
-            <th class="sortable sorted-desc" onclick="sortTable('worker')" aria-sort="descending">Trabajador <span class="sort-icon asc">▲</span><span class="sort-icon desc">▼</span></th>
-            <th class="sortable" onclick="sortTable('date')" aria-sort="none">Fecha <span class="sort-icon asc">▲</span><span class="sort-icon desc">▼</span></th>
+            <th class="sortable sorted-desc" data-action="sort-table" data-column="worker" aria-sort="descending">Trabajador <span class="sort-icon asc">▲</span><span class="sort-icon desc">▼</span></th>
+            <th class="sortable" data-action="sort-table" data-column="date" aria-sort="none">Fecha <span class="sort-icon asc">▲</span><span class="sort-icon desc">▼</span></th>
             <th>Unidad</th>
             <th>Tipo</th>
-            <th class="sortable" onclick="sortTable('hours')" aria-sort="none">Horas <span class="sort-icon asc">▲</span><span class="sort-icon desc">▼</span></th>
+            <th class="sortable" data-action="sort-table" data-column="hours" aria-sort="none">Horas <span class="sort-icon asc">▲</span><span class="sort-icon desc">▼</span></th>
             <th>Motivo / Nota</th>
             <th>Acciones</th>
           </tr>
@@ -145,6 +184,42 @@
 
 </main>
 
+<!-- Bottom Navigation (Móvil) -->
+<nav class="bottom-nav" aria-label="Navegación inferior">
+  <button class="bottom-nav-btn" data-action="open-record-modal" aria-label="Registrar">
+    <span class="bottom-nav-icon">➕</span>
+    <span class="bottom-nav-label">Registrar</span>
+  </button>
+  <button class="bottom-nav-btn" data-action="open-calendar" aria-label="Calendario">
+    <span class="bottom-nav-icon">📅</span>
+    <span class="bottom-nav-label">Calendario</span>
+  </button>
+  <button class="bottom-nav-btn" data-action="open-charts" aria-label="Gráficos">
+    <span class="bottom-nav-icon">📊</span>
+    <span class="bottom-nav-label">Gráficos</span>
+  </button>
+  <button class="bottom-nav-btn" data-action="open-workers" aria-label="Trabajadores">
+    <span class="bottom-nav-icon">👥</span>
+    <span class="bottom-nav-label">Equipo</span>
+  </button>
+  <button class="bottom-nav-btn bottom-nav-more" data-action="toggle-more-menu" aria-label="Más opciones" aria-expanded="false">
+    <span class="bottom-nav-icon">⋯</span>
+    <span class="bottom-nav-label">Más</span>
+  </button>
+  <div class="bottom-nav-more-menu" id="bottomNavMore">
+    <button data-action="open-worker-summary"><span>👤</span> Resumen</button>
+    <button data-action="export-excel"><span>📊</span> Excel</button>
+    <button data-action="export-json"><span>💾</span> Backup JSON</button>
+    <button data-action="open-email-pdf"><span>✉️</span> Enviar PDF</button>
+    <button data-action="share-whatsapp"><span>💬</span> WhatsApp</button>
+    <button data-action="create-backup"><span>💾</span> Crear Backup</button>
+    <button data-action="restore-backup"><span>🔄</span> Restaurar</button>
+    <button data-action="toggle-theme"><span>🌙</span> Tema</button>
+    <button data-action="install-pwa" id="bottomInstallBtn" style="display:none;"><span>📲</span> Instalar App</button>
+    <button data-action="clear-all-records" class="danger"><span>🗑️</span> Vaciar lista</button>
+  </div>
+</nav>
+
 <!-- =========================================== -->
 <!-- MODALES                                       -->
 <!-- =========================================== -->
@@ -153,7 +228,7 @@
 <div class="modal" id="recordModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-hidden="true">
   <div class="modal-box">
     <h2 id="modalTitle">⏱️ Registrar Horas Extras / Cobertura</h2>
-    <form onsubmit="event.preventDefault();saveRecord();">
+    <form id="recordForm">
       <input type="hidden" id="editingRecordId" value="">
       <div class="form-row">
         <div class="form-group" style="flex:1;">
@@ -182,14 +257,14 @@
         <label for="recReason">Motivo / Nota</label>
         <textarea id="recReason" rows="3" placeholder="Descripción breve"></textarea>
         <div class="quick-reasons" aria-label="Motivos rápidos">
-          <button type="button" class="btn" onclick="setReason('Horas extras asignadas')">Asignadas</button>
-          <button type="button" class="btn" onclick="setReason('Cobertura por baja')">Baja</button>
-          <button type="button" class="btn" onclick="setReason('Cobertura por festivos')">Festivo</button>
-          <button type="button" class="btn" onclick="setReason('Cobertura por vacaciones')">Vacaciones</button>
+          <button type="button" class="btn" data-reason="Horas extras asignadas">Asignadas</button>
+          <button type="button" class="btn" data-reason="Cobertura por baja">Baja</button>
+          <button type="button" class="btn" data-reason="Cobertura por festivos">Festivo</button>
+          <button type="button" class="btn" data-reason="Cobertura por vacaciones">Vacaciones</button>
         </div>
       </div>
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
-        <button type="button" class="btn" onclick="closeModal('recordModal')">Cancelar</button>
+        <button type="button" class="btn" data-modal-close="recordModal">Cancelar</button>
         <button type="submit" class="btn btn-primary">💾 Guardar</button>
       </div>
     </form>
@@ -198,18 +273,22 @@
 
 <!-- Modal: Gráficos -->
 <div class="modal" id="chartsModal" role="dialog" aria-modal="true" aria-labelledby="chartsTitle" aria-hidden="true">
-  <div class="modal-box" style="max-width:600px;">
+  <div class="modal-box" style="max-width:700px;">
     <h2 id="chartsTitle">📊 Gráficos y Distribución</h2>
     <div style="margin-bottom:20px;">
       <h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:12px;">Horas por Unidad</h3>
       <div id="unitChartsContainer"></div>
+    </div>
+    <div style="margin-bottom:20px;">
+      <h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:12px;">Tendencia Mensual (últimos 6 meses)</h3>
+      <div id="monthlyChart" style="position:relative;height:220px;"><canvas id="monthlyChartCanvas"></canvas></div>
     </div>
     <div>
       <h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:12px;">Distribución por Motivo</h3>
       <div id="reasonChartsContainer"></div>
     </div>
     <div style="display:flex;justify-content:flex-end;margin-top:16px;">
-      <button class="btn" onclick="closeModal('chartsModal')">Cerrar</button>
+      <button class="btn" data-modal-close="chartsModal">Cerrar</button>
     </div>
   </div>
 </div>
@@ -220,7 +299,7 @@
     <h2 id="calendarTitle">📅 Calendario de Horas Extras</h2>
     <div id="calendarContainer"></div>
     <div style="display:flex;justify-content:flex-end;margin-top:16px;">
-      <button class="btn" onclick="closeModal('calendarModal')">Cerrar</button>
+      <button class="btn" data-modal-close="calendarModal">Cerrar</button>
     </div>
   </div>
 </div>
@@ -231,7 +310,7 @@
     <h2 id="summaryTitle">👤 Resumen por Trabajador</h2>
     <div class="form-group">
       <label for="summaryMonthFilter">Filtrar por mes</label>
-      <select id="summaryMonthFilter" onchange="renderWorkerSummary()">
+      <select id="summaryMonthFilter">
         <option value="all">Todos</option>
       </select>
     </div>
@@ -250,8 +329,8 @@
       </table>
     </div>
     <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
-      <button class="btn" onclick="closeModal('workerSummaryModal')">Cerrar</button>
-      <button class="btn btn-primary" onclick="exportWorkerSummaryExcel()">📥 Exportar Excel</button>
+      <button class="btn" data-modal-close="workerSummaryModal">Cerrar</button>
+      <button class="btn btn-primary" data-action="export-worker-summary-excel">📥 Exportar Excel</button>
     </div>
   </div>
 </div>
@@ -262,11 +341,11 @@
     <h2 id="workersTitle">👥 Gestionar Trabajadores / Unidades</h2>
     <div class="form-group">
       <label for="manageUnitSelect">Seleccionar Unidad</label>
-      <select id="manageUnitSelect" onchange="renderWorkersList()"></select>
+      <select id="manageUnitSelect"></select>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:12px;">
       <input type="text" id="editUnitName" placeholder="Nombre de la unidad" style="flex:1;" aria-label="Editar nombre de unidad">
-      <button class="btn btn-sm" onclick="editUnit()">✏️ Editar Indicativo</button>
+      <button class="btn btn-sm" data-action="edit-unit">✏️ Editar Indicativo</button>
     </div>
     <div style="max-height:280px;overflow-y:auto;margin-bottom:16px;border:1px solid var(--border);border-radius:10px;">
       <div id="workersList"></div>
@@ -275,22 +354,22 @@
       <div style="flex:1;">
         <input type="text" id="newWorkerName" placeholder="APELLIDOS, NOMBRE" style="width:100%;" aria-label="Nuevo trabajador">
       </div>
-      <button class="btn btn-primary" onclick="addNewWorker()">+ Trabajador</button>
-      <button class="btn btn-danger" onclick="deleteUnit()">🗑️ Eliminar Unidad</button>
+      <button class="btn btn-primary" data-action="add-new-worker">+ Trabajador</button>
+      <button class="btn btn-danger" data-action="delete-unit">🗑️ Eliminar Unidad</button>
     </div>
     <hr style="border:none;border-top:1px solid var(--border);margin:16px 0;">
     <h3 style="font-size:14px;margin-bottom:12px;">🚑 Agregar Nueva Unidad</h3>
     <div class="form-row" style="margin-bottom:8px;gap:8px;">
-      <button type="button" class="btn btn-sm" onclick="addPresetUnit('TSNU 24H - AMBULANCIA')">+ TSNU 24H</button>
-      <button type="button" class="btn btn-sm" onclick="addPresetUnit('TSNU 12H - AMBULANCIA DE 07H A 19H')">+ TSNU 12H (07-19)</button>
-      <button type="button" class="btn btn-sm" onclick="addPresetUnit('TSNU 12H - AMBULANCIA DE 10H A 22H')">+ TSNU 12H (10-22)</button>
+      <button type="button" class="btn btn-sm" data-preset-unit="TSNU 24H - AMBULANCIA">+ TSNU 24H</button>
+      <button type="button" class="btn btn-sm" data-preset-unit="TSNU 12H - AMBULANCIA DE 07H A 19H">+ TSNU 12H (07-19)</button>
+      <button type="button" class="btn btn-sm" data-preset-unit="TSNU 12H - AMBULANCIA DE 10H A 22H">+ TSNU 12H (10-22)</button>
     </div>
     <div class="form-row" style="gap:8px;">
       <input type="text" id="newUnitName" placeholder="Nombre personalizado (ej: UNIDAD SVB 1400 LANZAROTE - 24H)" style="flex:2;" aria-label="Nombre de nueva unidad">
-      <button type="button" class="btn" onclick="addCustomUnit()" style="flex:1;">+ Unit Custom</button>
+      <button type="button" class="btn" data-action="add-custom-unit" style="flex:1;">+ Unit Custom</button>
     </div>
     <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
-      <button class="btn" onclick="closeModal('workersModal')">Cerrar</button>
+      <button class="btn" data-modal-close="workersModal">Cerrar</button>
     </div>
   </div>
 </div>
@@ -312,8 +391,8 @@
       Al hacer clic se compilará el informe oficial en PDF. En dispositivos móviles se abrirá el menú nativo para compartir. En ordenador se descargará el PDF.
     </div>
     <div style="display:flex;justify-content:flex-end;gap:8px;">
-      <button class="btn" onclick="closeModal('emailPDFModal')">Cancelar</button>
-      <button class="btn btn-primary" onclick="generateAndSendPDF()">📄 Generar PDF y Compartir</button>
+      <button class="btn" data-modal-close="emailPDFModal">Cancelar</button>
+      <button class="btn btn-primary" data-action="generate-pdf">📄 Generar PDF y Compartir</button>
     </div>
   </div>
 </div>

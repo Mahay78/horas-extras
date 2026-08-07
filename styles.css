@@ -563,11 +563,135 @@ tr:hover td { background: var(--card-hover); }
 
 /* ===== PRINT ===== */
 @media print {
-  header, .top-bar, .no-print, .fab { display: none !important; }
+  header, .top-bar, .no-print, .fab, .sidebar, .bottom-nav { display: none !important; }
   body { background: #fff; color: #000; }
   .table-card { border: 1px solid #ddd; box-shadow: none; }
   th { background: #f5f5f5 !important; color: #333 !important; }
   td { color: #333 !important; }
+  .container { max-width: 100%; padding: 0; }
+}
+
+/* ===== SIDEBAR (Desktop) ===== */
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 200px;
+  height: 100vh;
+  background: var(--card);
+  border-right: 1px solid var(--border);
+  padding: 72px 12px 24px;
+  z-index: 90;
+  overflow-y: auto;
+  display: none;
+}
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sidebar-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text);
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.15s;
+  text-align: left;
+}
+.sidebar-btn:hover {
+  background: var(--primary-glow);
+  border-color: var(--border-hover);
+  color: var(--primary);
+}
+.sidebar-btn:active { transform: scale(0.98); }
+.sidebar-icon { font-size: 18px; width: 24px; text-align: center; flex-shrink: 0; }
+.sidebar-label { font-size: 13px; }
+.sidebar-spacer { flex: 1; min-height: 24px; }
+
+/* Bottom Navigation (Móvil) */
+.bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: var(--card);
+  border-top: 1px solid var(--border);
+  z-index: 80;
+  padding: 0 4px;
+  backdrop-filter: blur(12px);
+}
+.light-mode .bottom-nav { background: rgba(255,255,255,0.85); }
+.bottom-nav-btn {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--muted);
+  padding: 8px 4px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  transition: color 0.15s;
+  font: inherit;
+}
+.bottom-nav-btn:hover, .bottom-nav-btn:focus-visible { color: var(--primary); }
+.bottom-nav-btn:active { transform: scale(0.95); }
+.bottom-nav-icon { font-size: 20px; }
+.bottom-nav-label { font-size: 10px; font-weight: 600; }
+.bottom-nav-btn { display: flex; }
+
+.bottom-nav-more-menu {
+  display: none;
+  position: fixed;
+  bottom: 64px;
+  right: 8px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  z-index: 85;
+  min-width: 220px;
+  padding: 6px;
+  overflow: hidden;
+}
+.bottom-nav-more-menu.show { display: block; animation: fadeIn 0.15s ease; }
+.bottom-nav-more-menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  background: none;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  border-radius: 8px;
+  transition: background 0.15s;
+  font: inherit;
+}
+.bottom-nav-more-menu button:hover { background: var(--primary-glow); color: var(--primary); }
+.bottom-nav-more-menu button.danger { color: var(--danger); }
+.bottom-nav-more-menu button.danger:hover { background: rgba(239,68,68,0.15); }
+
+/* ===== Desktop layout ===== */
+@media(min-width: 900px) {
+  .sidebar { display: block; }
+  .container { padding-left: 220px; max-width: 1200px; }
+  .bottom-nav { display: none !important; }
+  .fab { right: 24px; }
 }
 
 /* ===== MOBILE ===== */
@@ -626,8 +750,10 @@ tr:hover td { background: var(--card-hover); }
   .form-group input, .form-group select { font-size: 16px; padding: 12px; }
   .btn { min-height: 44px; }
 
-  .fab { bottom: 20px; right: 20px; width: 56px; height: 56px; font-size: 26px; }
-  .fab-secondary { bottom: 84px; width: 44px; height: 44px; font-size: 22px; }
+  .fab { bottom: 80px; right: 20px; width: 56px; height: 56px; font-size: 26px; }
+  .fab-secondary { bottom: 144px; width: 44px; height: 44px; font-size: 22px; }
+  .bottom-nav { display: flex !important; }
+  .container { padding-bottom: 76px; }
 
   #toast { bottom: 90px; width: calc(100% - 32px); max-width: 400px; }
 }

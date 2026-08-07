@@ -123,7 +123,7 @@ function showToastMsg(msg, type = 'info') {
     document.body.appendChild(toast);
   }
   const icons = { info: 'ℹ️', success: '✅', warning: '⚠️', error: '❌' };
-  toast.innerHTML = `<span>${icons[type] || 'ℹ️'} ${escHtml(msg)}</span><button aria-label="Cerrar" onclick="this.parentElement.classList.remove('show')">✕</button>`;
+  toast.innerHTML = `<span>${icons[type] || 'ℹ️'} ${escHtml(msg)}</span><button class="toast-close" aria-label="Cerrar">✕</button>`;
   toast.classList.add('show');
   setTimeout(() => toast.classList.remove('show'), 4000);
 }
@@ -512,6 +512,7 @@ function render() {
     pageRecords.forEach(r => {
       const tr = document.createElement('tr');
       const isCovering = r.covering && !r.covering.includes('N/A');
+      tr.dataset.recordId = r.id;
       tr.innerHTML = `
         <td style="font-weight:700;">${escHtml(r.worker)}</td>
         <td>📅 ${escHtml(r.date)}</td>
@@ -520,8 +521,8 @@ function render() {
         <td><span class="badge badge-hours">+${r.hours}h</span></td>
         <td>${escHtml(r.reason)}</td>
         <td style="text-align:right">
-          <button class="btn btn-sm" onclick="editRecord(${r.id})" aria-label="Editar registro">✏️</button>
-          <button class="btn btn-sm btn-danger" onclick="deleteRecord(${r.id})" aria-label="Borrar registro">✕</button>
+          <button class="btn btn-sm" data-action="edit-record" data-record-id="${r.id}" aria-label="Editar registro">✏️</button>
+          <button class="btn btn-sm btn-danger" data-action="delete-record" data-record-id="${r.id}" aria-label="Borrar registro">✕</button>
         </td>`;
       tbody.appendChild(tr);
     });
@@ -563,17 +564,17 @@ function renderPagination(totalRecords, totalPages) {
   if (!container) return;
   container.style.display = 'flex';
   if (totalRecords <= PAGE_SIZE) { container.innerHTML = `<span class="info">${totalRecords} registro${totalRecords !== 1 ? 's' : ''}</span>`; return; }
-  let html = `<button onclick="goToPage(1)" ${currentPage === 1 ? 'disabled' : ''} aria-label="Primera página">«</button>`;
-  html += `<button onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} aria-label="Página anterior">‹</button>`;
+  let html = `<button data-page="1" ${currentPage === 1 ? 'disabled' : ''} aria-label="Primera página">«</button>`;
+  html += `<button data-page="${currentPage - 1}" ${currentPage === 1 ? 'disabled' : ''} aria-label="Página anterior">‹</button>`;
   const startPage = Math.max(1, currentPage - 2);
   const endPage = Math.min(totalPages, startPage + 4);
   if (startPage > 1) html += `<span class="info">…</span>`;
   for (let p = startPage; p <= endPage; p++) {
-    html += `<button onclick="goToPage(${p})" class="${p === currentPage ? 'active' : ''}" aria-label="Página ${p}" ${p === currentPage ? 'aria-current="page"' : ''}>${p}</button>`;
+    html += `<button data-page="${p}" class="${p === currentPage ? 'active' : ''}" aria-label="Página ${p}" ${p === currentPage ? 'aria-current="page"' : ''}>${p}</button>`;
   }
   if (endPage < totalPages) html += `<span class="info">…</span>`;
-  html += `<button onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''} aria-label="Página siguiente">›</button>`;
-  html += `<button onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''} aria-label="Última página">»</button>`;
+  html += `<button data-page="${currentPage + 1}" ${currentPage === totalPages ? 'disabled' : ''} aria-label="Página siguiente">›</button>`;
+  html += `<button data-page="${totalPages}" ${currentPage === totalPages ? 'disabled' : ''} aria-label="Última página">»</button>`;
   const start = (currentPage - 1) * PAGE_SIZE + 1;
   const end = Math.min(start + PAGE_SIZE - 1, totalRecords);
   html += `<span class="info">${start}-${end} de ${totalRecords}</span>`;
@@ -581,9 +582,10 @@ function renderPagination(totalRecords, totalPages) {
 }
 
 function goToPage(page) {
-  currentPage = page;
+  currentPage = parseInt(page, 10);
   render();
-  window.scrollTo({ top: document.querySelector('.table-card').offsetTop - 100, behavior: 'smooth' });
+  const card = document.querySelector('.table-card');
+  if (card) window.scrollTo({ top: card.offsetTop - 100, behavior: 'smooth' });
 }
 
 function filterByStat(type) {
@@ -654,11 +656,12 @@ function openChartsModal() {
   if (Object.keys(unitTotals).length === 0) {
     unitContainer.innerHTML = '<div style="font-size:12px;color:var(--muted)">Sin datos para mostrar gráficos</div>';
   } else {
-    for (const [u, h] of Object.entries(unitTotals)) {
+    const sortedUnits = Object.entries(unitTotals).sort((a, b) => b[1] - a[1]);
+    for (const [u, h] of sortedUnits) {
       const pct = maxUnitHours > 0 ? Math.round((h / maxUnitHours) * 100) : 0;
       unitContainer.innerHTML += `
         <div class="chart-item">
-          <div class="chart-label"><span>${escHtml(u)}</span><span>${h}h</span></div>
+          <div class="chart-label"><span>${escHtml(u)}</span><span>+${h}h</span></div>
           <div class="chart-bar-bg"><div class="chart-bar-fill" style="width:${pct}%;"></div></div>
         </div>`;
     }
@@ -668,7 +671,8 @@ function openChartsModal() {
   if (Object.keys(reasonTotals).length === 0) {
     reasonContainer.innerHTML = '<div style="font-size:12px;color:var(--muted)">Sin datos para mostrar gráficos</div>';
   } else {
-    for (const [r, h] of Object.entries(reasonTotals)) {
+    const sortedReasons = Object.entries(reasonTotals).sort((a, b) => b[1] - a[1]);
+    for (const [r, h] of sortedReasons) {
       reasonContainer.innerHTML += `
         <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">
           <span>${escHtml(r)}</span>
@@ -677,6 +681,7 @@ function openChartsModal() {
     }
   }
   openModal('chartsModal');
+  renderMonthlyChart();
 }
 
 // ========================
@@ -705,9 +710,9 @@ function renderCalendar() {
   const today = new Date();
   const todayKey = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
   let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">`;
-  html += `<button class="btn btn-sm" onclick="changeCalMonth(-1)" aria-label="Mes anterior">◀</button>`;
+  html += `<button class="btn btn-sm" data-cal-nav="-1" aria-label="Mes anterior">◀</button>`;
   html += `<b style="font-size:16px;">${months[calendarMonth]} ${calendarYear}</b>`;
-  html += `<button class="btn btn-sm" onclick="changeCalMonth(1)" aria-label="Mes siguiente">▶</button>`;
+  html += `<button class="btn btn-sm" data-cal-nav="1" aria-label="Mes siguiente">▶</button>`;
   html += `</div>`;
   html += `<div class="calendar-grid">`;
   days.forEach(d => { html += `<div class="calendar-day-header">${d}</div>`; });
@@ -723,7 +728,7 @@ function renderCalendar() {
     const classes = ['calendar-day'];
     if (isToday) classes.push('today');
     if (count > 0) classes.push('has-records');
-    html += `<div class="${classes.join(' ')}" onclick="showCalDayDetail(${calendarYear},${calendarMonth},${d})" role="button" tabindex="0" aria-label="${d} de ${months[calendarMonth]}, ${count} registros">
+    html += `<div class="${classes.join(' ')}" data-cal-day="${d}" role="button" tabindex="0" aria-label="${d} de ${months[calendarMonth]}, ${count} registros">
       <div style="font-weight:600;">${d}</div>
       ${count > 0 ? `<div style="font-size:10px;color:var(--primary);">${count} reg.</div>` : ''}
     </div>`;
@@ -879,7 +884,7 @@ function renderWorkersList() {
     container.innerHTML += `
       <div class="worker-item">
         <span style="font-size:13px;">${escHtml(w)}</span>
-        <button class="btn btn-sm btn-danger" onclick="removeWorker(${unitIdx},${wIdx});renderWorkersList();" aria-label="Eliminar trabajador">✕</button>
+        <button class="btn btn-sm btn-danger" data-action="remove-worker" data-unit-idx="${unitIdx}" data-worker-idx="${wIdx}" aria-label="Eliminar trabajador">✕</button>
       </div>`;
   });
   if (units[unitIdx].workers.length === 0) {
@@ -1245,8 +1250,10 @@ let deferredPrompt;
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredPrompt = e;
-  const btn = document.getElementById('installMenuBtn');
-  if (btn) btn.style.display = 'flex';
+  const btnMenu = document.getElementById('installMenuBtn');
+  if (btnMenu) btnMenu.style.display = 'block';
+  const btnBottom = document.getElementById('bottomInstallBtn');
+  if (btnBottom) btnBottom.style.display = 'flex';
 });
 
 function installPWA() {
@@ -1254,12 +1261,247 @@ function installPWA() {
     deferredPrompt.prompt();
     deferredPrompt.userChoice.then((choiceResult) => {
       if (choiceResult.outcome === 'accepted') {
-        const btn = document.getElementById('installMenuBtn');
-        if (btn) btn.style.display = 'none';
+        const btnMenu = document.getElementById('installMenuBtn');
+        if (btnMenu) btnMenu.style.display = 'none';
+        const btnBottom = document.getElementById('bottomInstallBtn');
+        if (btnBottom) btnBottom.style.display = 'none';
       }
       deferredPrompt = null;
     });
   }
+}
+
+// ========================
+// Event delegation (CSP-safe, no inline onclick)
+// ========================
+
+const actionHandlers = {
+  'toggle-dropdown': (el) => toggleDropdown(el.dataset.target),
+  'toggle-more-menu': (el) => {
+    const menu = document.getElementById('bottomNavMore');
+    menu.classList.toggle('show');
+    el.setAttribute('aria-expanded', menu.classList.contains('show') ? 'true' : 'false');
+  },
+  'open-record-modal': () => openRecordModal(),
+  'open-charts': () => openChartsModal(),
+  'open-calendar': () => openCalendarModal(),
+  'open-worker-summary': () => openWorkerSummaryModal(),
+  'open-workers': () => openWorkersModal(),
+  'open-email-pdf': () => openEmailPDFModal(),
+  'toggle-theme': () => toggleTheme(),
+  'clear-all-records': () => clearAllRecords(),
+  'export-excel': () => exportExcel(),
+  'export-csv': () => exportCSV(),
+  'export-json': () => exportJSON(),
+  'import-json': () => document.getElementById('importJSONInput').click(),
+  'json-file-selected': (el) => importJSON(),
+  'print-report': () => printReport(),
+  'share-whatsapp': () => shareWhatsApp(),
+  'create-backup': () => { createBackup(); showToastMsg('Backup creado.', 'success'); },
+  'restore-backup': () => restoreBackup(),
+  'install-pwa': () => installPWA(),
+  'scroll-top': () => window.scrollTo({ top: 0, behavior: 'smooth' }),
+  'edit-record': (el) => editRecord(parseInt(el.dataset.recordId, 10)),
+  'delete-record': (el) => deleteRecord(parseInt(el.dataset.recordId, 10)),
+  'sort-table': (el) => sortTable(el.dataset.column),
+  'filter-stat': (el) => filterByStat(el.dataset.stat),
+  'edit-unit': () => editUnit(),
+  'add-new-worker': () => addNewWorker(),
+  'delete-unit': () => deleteUnit(),
+  'add-custom-unit': () => addCustomUnit(),
+  'remove-worker': (el) => { removeWorker(parseInt(el.dataset.unitIdx, 10), parseInt(el.dataset.workerIdx, 10)); renderWorkersList(); },
+  'export-worker-summary-excel': () => exportWorkerSummaryExcel(),
+  'generate-pdf': () => generateAndSendPDF(),
+};
+
+function dispatchAction(e, target) {
+  const action = target.dataset.action;
+  if (!action) return;
+  const handler = actionHandlers[action];
+  if (handler) {
+    e.preventDefault();
+    handler(target);
+  }
+}
+
+document.addEventListener('click', (e) => {
+  const target = e.target.closest('[data-action]');
+  if (!target) return;
+  dispatchAction(e, target);
+});
+
+document.addEventListener('change', (e) => {
+  const target = e.target.closest('[data-action]');
+  if (!target) return;
+  dispatchAction(e, target);
+});
+
+document.addEventListener('input', (e) => {
+  const id = e.target.id;
+  if (id === 'searchInput' || id === 'monthFilter' || id === 'unitFilter' || id === 'summaryMonthFilter' || id === 'manageUnitSelect') {
+    if (id === 'manageUnitSelect') renderWorkersList();
+    else { currentPage = 1; renderWorkerSummary(); if (id !== 'summaryMonthFilter') render(); }
+  }
+});
+
+document.addEventListener('submit', (e) => {
+  if (e.target.id === 'recordForm') {
+    e.preventDefault();
+    saveRecord();
+  }
+});
+
+document.addEventListener('click', (e) => {
+  if (e.target.matches('[data-modal-close]') || e.target.closest('[data-modal-close]')) {
+    const btn = e.target.matches('[data-modal-close]') ? e.target : e.target.closest('[data-modal-close]');
+    closeModal(btn.dataset.modalClose);
+  }
+});
+
+document.addEventListener('click', (e) => {
+  const presetBtn = e.target.closest('[data-preset-unit]');
+  if (presetBtn) {
+    e.preventDefault();
+    addPresetUnit(presetBtn.dataset.presetUnit);
+  }
+});
+
+document.addEventListener('click', (e) => {
+  const reasonBtn = e.target.closest('[data-reason]');
+  if (reasonBtn) {
+    e.preventDefault();
+    setReason(reasonBtn.dataset.reason);
+  }
+});
+
+document.addEventListener('click', (e) => {
+  if (e.target.matches('.toast-close') || e.target.closest('.toast-close')) {
+    const toast = document.getElementById('toast');
+    if (toast) toast.classList.remove('show');
+  }
+});
+
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-page]');
+  if (btn) { e.preventDefault(); goToPage(btn.dataset.page); }
+});
+
+document.addEventListener('click', (e) => {
+  const navBtn = e.target.closest('[data-cal-nav]');
+  if (navBtn) { e.preventDefault(); changeCalMonth(parseInt(navBtn.dataset.calNav, 10)); }
+});
+
+document.addEventListener('click', (e) => {
+  const dayBtn = e.target.closest('[data-cal-day]');
+  if (dayBtn) {
+    e.preventDefault();
+    showCalDayDetail(calendarYear, calendarMonth, parseInt(dayBtn.dataset.calDay, 10));
+  }
+});
+
+// Close "More" menu on outside click
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.bottom-nav-more-menu') && !e.target.closest('[data-action="toggle-more-menu"]')) {
+    const menu = document.getElementById('bottomNavMore');
+    if (menu && menu.classList.contains('show')) {
+      menu.classList.remove('show');
+      const trigger = document.querySelector('[data-action="toggle-more-menu"]');
+      if (trigger) trigger.setAttribute('aria-expanded', 'false');
+    }
+  }
+  if (!e.target.closest('.dropdown')) closeAllDropdowns();
+});
+
+// Chart.js lazy-load (for monthly trend chart)
+let chartJSPromise = null;
+function loadChartJS() {
+  if (typeof Chart !== 'undefined') return Promise.resolve();
+  if (!chartJSPromise) {
+    chartJSPromise = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js';
+      s.onload = () => resolve();
+      s.onerror = () => { chartJSPromise = null; reject(new Error('chart.js load failed')); };
+      document.head.appendChild(s);
+    });
+  }
+  return chartJSPromise;
+}
+
+let monthlyChartInstance = null;
+async function renderMonthlyChart() {
+  try {
+    await loadChartJS();
+  } catch (e) { return; }
+  const ctx = document.getElementById('monthlyChartCanvas');
+  if (!ctx) return;
+  const months = [];
+  const totals = [];
+  const now = new Date();
+  const monthsEs = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const monthNum = d.getMonth() + 1;
+    const year = d.getFullYear();
+    const total = records.reduce((sum, r) => {
+      const parts = r.date.split('/');
+      if (parts.length === 3 && parseInt(parts[1]) === monthNum && parseInt(parts[2]) === year) {
+        return sum + r.hours;
+      }
+      return sum;
+    }, 0);
+    months.push(`${monthsEs[d.getMonth()]} ${String(year).slice(2)}`);
+    totals.push(total);
+  }
+  if (monthlyChartInstance) monthlyChartInstance.destroy();
+  const isDark = !document.body.classList.contains('light-mode');
+  monthlyChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: months,
+      datasets: [{
+        label: 'Horas extras',
+        data: totals,
+        borderColor: '#38bdf8',
+        backgroundColor: isDark ? 'rgba(56,189,248,0.15)' : 'rgba(2,132,199,0.15)',
+        tension: 0.3,
+        fill: true,
+        pointBackgroundColor: '#38bdf8',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: 5,
+        pointHoverRadius: 7
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: isDark ? '#1e293b' : '#fff',
+          titleColor: isDark ? '#f8fafc' : '#0f172a',
+          bodyColor: isDark ? '#f8fafc' : '#0f172a',
+          borderColor: 'rgba(56,189,248,0.3)',
+          borderWidth: 1,
+          padding: 10,
+          displayColors: false,
+          callbacks: { label: (ctx) => `+${ctx.parsed.y}h` }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { color: isDark ? '#94a3b8' : '#64748b', callback: (v) => v + 'h' },
+          grid: { color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }
+        },
+        x: {
+          ticks: { color: isDark ? '#94a3b8' : '#64748b' },
+          grid: { display: false }
+        }
+      }
+    }
+  });
 }
 
 // ========================
