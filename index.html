@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' cdnjs.cloudflare.com 'unsafe-eval'; style-src 'self' 'unsafe-inline' fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' fonts.gstatic.com cdnjs.cloudflare.com; connect-src 'self';">
-<link rel="manifest" href="manifest.json">
+<meta name="description" content="Aplicación PWA para el control de horas extras y coberturas de ambulancias">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' cdnjs.cloudflare.com cdn.sheetjs.com 'unsafe-eval'; style-src 'self' 'unsafe-inline' fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' fonts.gstatic.com cdnjs.cloudflare.com; connect-src 'self' https:;">
 <meta name="theme-color" content="#0f172a">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14,768 +14,216 @@
 <meta name="msapplication-TileImage" content="/icon-192.png">
 <meta name="msapplication-tap-highlight" content="no">
 <meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-<style>
-:root {
-  --bg: #0f172a;
-  --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-  --card: #1e293b;
-  --card-hover: #334155;
-  --card-gradient: linear-gradient(145deg, #1e293b 0%, #252d3f 100%);
-  --border: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(56, 189, 248, 0.3);
-  --text: #f8fafc;
-  --muted: #94a3b8;
-  --primary: #38bdf8;
-  --primary-hover: #0ea5e9;
-  --primary-glow: rgba(56, 189, 248, 0.15);
-  --success: #10b981;
-  --danger: #ef4444;
-  --warning: #f59e0b;
-  --shadow: 0 4px 24px rgba(0,0,0,0.3);
-  --shadow-lg: 0 8px 32px rgba(0,0,0,0.4);
-  --radius: 12px;
-  --radius-lg: 16px;
-}
-
-.light-mode {
-  --bg: #f8fafc;
-  --bg-gradient: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-  --card: #ffffff;
-  --card-hover: #f1f5f9;
-  --card-gradient: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-  --border: #e2e8f0;
-  --border-hover: rgba(2, 132, 199, 0.3);
-  --text: #0f172a;
-  --muted: #64748b;
-  --primary: #0284c7;
-  --primary-hover: #0369a1;
-  --primary-glow: rgba(2, 132, 199, 0.1);
-  --success: #059669;
-  --danger: #dc2626;
-  --warning: #d97706;
-  --shadow: 0 4px 24px rgba(0,0,0,0.08);
-  --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
-}
-
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html { font-size: 14px; }
-body { 
-  font-family: 'Inter', system-ui, -apple-system, sans-serif; 
-  background: var(--bg-gradient);
-  background-attachment: fixed;
-  color: var(--text); 
-  min-height: 100vh; 
-  padding-bottom: 40px;
-}
-
-/* ===== HEADER ===== */
-header { 
-  background: var(--card); 
-  border-bottom: 1px solid var(--border); 
-  padding: 12px 16px; 
-  position: sticky; 
-  top: 0; 
-  z-index: 100;
-  backdrop-filter: blur(12px);
-  background: rgba(30, 41, 59, 0.85);
-}
-.light-mode header { background: rgba(255,255,255,0.85); }
-
-.header-wrap { 
-  max-width: 1200px; 
-  margin: 0 auto; 
-  display: flex; 
-  justify-content: space-between; 
-  align-items: center; 
-  gap: 12px; 
-}
-
-.logo { 
-  font-size: 20px; 
-  font-weight: 700; 
-  color: var(--primary); 
-  display: flex; 
-  align-items: center; 
-  gap: 8px;
-  letter-spacing: -0.3px;
-}
-
-.header-actions { 
-  display: flex; 
-  align-items: center; 
-  gap: 6px; 
-}
-
-/* Buttons */
-.btn { 
-  background: var(--card-hover); 
-  color: var(--text); 
-  border: 1px solid var(--border); 
-  padding: 8px 12px; 
-  border-radius: 10px; 
-  font-size: 13px; 
-  font-weight: 600; 
-  cursor: pointer; 
-  display: inline-flex; 
-  align-items: center; 
-  gap: 6px; 
-  transition: all 0.2s ease;
-  min-height: 40px;
-  white-space: nowrap;
-}
-.btn:hover { 
-  border-color: var(--primary); 
-  color: var(--primary);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(56, 189, 248, 0.2);
-}
-.btn:active { transform: translateY(0); }
-.btn-primary { 
-  background: var(--primary); 
-  color: #000; 
-  border-color: var(--primary);
-  font-weight: 700;
-}
-.btn-primary:hover { 
-  background: var(--primary-hover);
-  opacity: 1; 
-  color: #000;
-  box-shadow: 0 4px 16px rgba(56, 189, 248, 0.4);
-}
-.btn-danger { 
-  background: rgba(239,68,68,0.15); 
-  color: var(--danger); 
-  border-color: rgba(239,68,68,0.3); 
-}
-.btn-danger:hover { 
-  background: var(--danger); 
-  color: #fff;
-  box-shadow: 0 4px 12px rgba(239,68,68,0.3);
-}
-.btn-icon { padding: 8px 10px; font-size: 16px; }
-
-/* Dropdown menus */
-.dropdown { position: relative; }
-.dropdown-menu {
-  display: none;
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-lg);
-  min-width: 180px;
-  z-index: 200;
-  overflow: hidden;
-}
-.dropdown-menu.show { display: block; animation: fadeIn 0.15s ease; }
-.dropdown-menu button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 10px 14px;
-  border: none;
-  background: none;
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  text-align: left;
-  transition: background 0.15s;
-}
-.dropdown-menu button:hover { background: var(--primary-glow); color: var(--primary); }
-
-@keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
-
-/* FAB (Floating Action Button) */
-.fab {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
-  color: #000;
-  border: none;
-  font-size: 28px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 6px 24px rgba(56, 189, 248, 0.4);
-  transition: all 0.2s ease;
-  z-index: 90;
-}
-.fab:hover {
-  transform: scale(1.08);
-  box-shadow: 0 8px 32px rgba(56, 189, 248, 0.5);
-}
-.fab:active { transform: scale(0.95); }
-
-/* Container */
-.container { max-width: 1200px; margin: 20px auto; padding: 0 16px; }
-
-/* ===== STATS ===== */
-.stats-grid { 
-  display: grid; 
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); 
-  gap: 12px; 
-  margin-bottom: 20px; 
-}
-.stat-box { 
-  background: var(--card-gradient);
-  border: 1px solid var(--border); 
-  border-radius: var(--radius-lg); 
-  padding: 16px; 
-  display: flex; 
-  flex-direction: column;
-  transition: all 0.2s ease;
-}
-.stat-box:hover { border-color: var(--border-hover); }
-.stat-box .title { 
-  font-size: 11px; 
-  color: var(--muted); 
-  font-weight: 600; 
-  text-transform: uppercase; 
-  letter-spacing: 0.8px; 
-}
-.stat-box .num { 
-  font-size: 28px; 
-  font-weight: 700; 
-  color: var(--text); 
-  margin-top: 6px;
-  letter-spacing: -0.5px;
-}
-.stat-box .bar { 
-  height: 4px; 
-  background: var(--border); 
-  border-radius: 2px; 
-  margin-top: 8px;
-  overflow: hidden;
-}
-.stat-box .bar-fill { 
-  height: 100%; 
-  background: linear-gradient(90deg, var(--primary) 0%, var(--success) 100%); 
-  border-radius: 2px;
-  transition: width 0.5s ease;
-}
-
-/* ===== SEARCH & FILTERS ===== */
-.top-bar { 
-  display: flex; 
-  justify-content: space-between; 
-  align-items: center; 
-  gap: 12px; 
-  margin-bottom: 16px; 
-  flex-wrap: wrap; 
-}
-.search-input { 
-  background: var(--card); 
-  border: 1px solid var(--border); 
-  color: var(--text); 
-  padding: 10px 14px; 
-  border-radius: 10px; 
-  font-size: 14px; 
-  outline: none;
-  transition: border-color 0.2s;
-  min-width: 200px;
-}
-.search-input:focus { border-color: var(--primary); }
-select.search-input { appearance: auto; }
-
-/* ===== TABLE ===== */
-.table-card { 
-  background: var(--card); 
-  border: 1px solid var(--border); 
-  border-radius: var(--radius-lg); 
-  overflow: hidden;
-  box-shadow: var(--shadow);
-}
-.table-responsive { width: 100%; overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
-th { 
-  background: rgba(255,255,255,0.03); 
-  color: var(--muted); 
-  font-weight: 600; 
-  padding: 14px 16px; 
-  border-bottom: 1px solid var(--border); 
-  text-transform: uppercase; 
-  font-size: 11px; 
-  letter-spacing: 0.8px; 
-}
-.light-mode th { background: rgba(0,0,0,0.02); }
-th.sortable { cursor: pointer; user-select: none; transition: all 0.2s; }
-th.sortable:hover { background: rgba(255,255,255,0.06); }
-th.sortable .sort-icon { margin-left: 4px; opacity: 0.4; }
-th.sortable.sorted-asc .sort-icon.asc { opacity: 1; }
-th.sortable.sorted-desc .sort-icon.desc { opacity: 1; }
-td { 
-  padding: 14px 16px; 
-  border-bottom: 1px solid var(--border); 
-  color: var(--text);
-  transition: background 0.15s;
-}
-tr:last-child td { border-bottom: none; }
-tr:hover td { background: var(--card-hover); }
-
-.badge { 
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 10px; 
-  border-radius: 8px; 
-  font-size: 12px; 
-  font-weight: 600; 
-}
-.badge-hours { background: rgba(56, 189, 248, 0.15); color: var(--primary); border: 1px solid rgba(56, 189, 248, 0.3); }
-.badge-covered { background: rgba(245, 158, 11, 0.15); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.3); }
-.badge-direct { background: rgba(16, 185, 129, 0.15); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.3); }
-
-/* Empty state */
-.empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
-.empty-state .icon { font-size: 56px; margin-bottom: 16px; opacity: 0.5; }
-
-/* ===== MODALS ===== */
-.modal { 
-  display: none; 
-  position: fixed; 
-  inset: 0; 
-  background: rgba(0,0,0,0.6); 
-  z-index: 200; 
-  padding: 16px;
-  align-items: center;
-  justify-content: center;
-}
-.modal.open { display: flex; }
-.modal-box { 
-  background: var(--card); 
-  border: 1px solid var(--border); 
-  border-radius: var(--radius-lg); 
-  padding: 24px; 
-  width: 100%; 
-  max-width: 480px;
-  box-shadow: var(--shadow-lg);
-  animation: modalIn 0.2s ease;
-}
-@keyframes modalIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-.modal-box h2 { font-size: 18px; margin-bottom: 16px; color: var(--text); }
-
-.form-group { margin-bottom: 14px; }
-.form-group label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
-.form-group input, .form-group select, .form-group textarea { 
-  width: 100%; 
-  background: var(--bg); 
-  border: 1px solid var(--border); 
-  color: var(--text); 
-  padding: 10px 12px; 
-  border-radius: 10px; 
-  font-size: 14px;
-  outline: none;
-  transition: border-color 0.2s;
-}
-.form-group input:focus, .form-group select:focus { border-color: var(--primary); }
-.form-row { display: flex; gap: 12px; }
-.form-row .form-group { flex: 1; }
-
-/* Quick reason buttons */
-.quick-reasons { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
-.quick-reasons .btn { font-size: 11px; padding: 6px 10px; min-height: 32px; }
-
-/* Calendar */
-.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
-.calendar-day { 
-  cursor: pointer; 
-  padding: 8px 4px; 
-  border-radius: 10px; 
-  border: 1px solid var(--border); 
-  min-height: 52px; 
-  transition: all 0.2s; 
-}
-.calendar-day:hover { border-color: var(--primary); background: var(--primary-glow); }
-.calendar-day.today { border: 2px solid var(--primary); background: var(--primary-glow); }
-.calendar-day.has-records { background: var(--primary-glow); }
-.calendar-day-header { font-size: 11px; font-weight: 600; color: var(--muted); padding: 8px; }
-
-/* Worker List */
-.worker-item { 
-  display: flex; 
-  justify-content: space-between; 
-  align-items: center; 
-  padding: 10px 14px; 
-  border-bottom: 1px solid var(--border);
-  transition: background 0.15s;
-}
-.worker-item:last-child { border-bottom: none; }
-.worker-item:hover { background: var(--card-hover); }
-
-/* Backup Status */
-.backup-status { 
-  font-size: 11px; 
-  padding: 4px 10px; 
-  border-radius: 8px;
-  font-weight: 500;
-}
-.backup-ok { color: var(--success); }
-.backup-warn { color: var(--warning); }
-
-/* Toast */
-#toast {
-  position: fixed;
-  bottom: 100px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 12px 20px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  box-shadow: var(--shadow-lg);
-  z-index: 300;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.3s, transform 0.3s;
-  font-size: 14px;
-  font-weight: 500;
-}
-#toast.show { opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(-8px); }
-#toast button { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; }
-
-/* Charts */
-.chart-item { margin-bottom: 12px; }
-.chart-label { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
-.chart-bar-bg { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
-.chart-bar-fill { height: 100%; background: linear-gradient(90deg, var(--primary) 0%, var(--success) 100%); border-radius: 4px; transition: width 0.5s ease; }
-
-/* ===== PRINT ===== */
-@media print {
-  header, .top-bar, .no-print, .fab { display: none !important; }
-  body { background: #fff; color: #000; }
-  .table-card { border: 1px solid #ddd; box-shadow: none; }
-  th { background: #f5f5f5 !important; color: #333 !important; }
-  td { color: #333 !important; }
-}
-
-/* ===== MOBILE ===== */
-@media(max-width: 640px) {
-  html { font-size: 14px; }
-  header { padding: 10px 12px; }
-  .header-wrap { gap: 8px; }
-  .logo { font-size: 17px; }
-  
-  .header-actions .btn span.btn-text { display: none; }
-  .header-actions .btn { padding: 8px 10px; font-size: 16px; }
-  
-  .container { padding: 0 12px; margin: 14px auto; }
-  .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
-  .stat-box { padding: 12px; }
-  .stat-box .num { font-size: 22px; }
-  
-  .top-bar { flex-direction: column; align-items: stretch; }
-  .search-input { min-width: 100%; }
-  
-  /* Bottom sheet modals */
-  .modal { align-items: flex-end; padding: 0; }
-  .modal-box { 
-    border-radius: 20px 20px 0 0; 
-    max-height: 85vh; 
-    overflow-y: auto;
-    padding: 20px 16px 32px;
-    animation: slideUp 0.25s ease;
-  }
-  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-  
-  /* Card-style table rows */
-  table, thead, tbody, th, td, tr { display: block; }
-  thead tr { position: absolute; top: -9999px; left: -9999px; }
-  tr { 
-    background: var(--card); 
-    border: 1px solid var(--border); 
-    border-radius: 14px; 
-    margin-bottom: 10px; 
-    padding: 16px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-  }
-  td { border: none !important; padding: 6px 0 !important; display: flex; justify-content: space-between; align-items: center; }
-  td:before { font-weight: 600; color: var(--muted); font-size: 11px; text-transform: uppercase; }
-  td:nth-of-type(1) { font-size: 15px; padding-bottom: 10px !important; border-bottom: 1px solid var(--border) !important; margin-bottom: 8px; }
-  td:nth-of-type(1):before { content: "Trabajador"; display: none; }
-  td:nth-of-type(2):before { content: "Fecha:"; }
-  td:nth-of-type(3):before { content: "Unidad:"; }
-  td:nth-of-type(4):before { content: "Cubre a:"; }
-  td:nth-of-type(5):before { content: "Horas:"; }
-  td:nth-of-type(6):before { content: "Motivo:"; }
-  td:nth-of-type(7) { justify-content: flex-end; padding-top: 10px !important; border-top: 1px solid var(--border) !important; margin-top: 8px; gap: 8px; }
-  td:nth-of-type(7):before { content: ""; }
-  
-  .form-row { flex-direction: column; gap: 0; }
-  .form-group input, .form-group select { font-size: 16px; padding: 12px; }
-  .btn { min-height: 44px; }
-  
-  .fab { bottom: 20px; right: 20px; width: 56px; height: 56px; font-size: 26px; }
-  
-  #toast { bottom: 90px; width: calc(100% - 32px); max-width: 400px; }
-}
-
-/* Swipe hint for mobile table rows */
-tr { position: relative; }
-@media(max-width: 640px) {
-  tr::after { 
-    content: ''; 
-    position: absolute; 
-    right: 12px; 
-    top: 50%; 
-    transform: translateY(-50%); 
-    width: 4px; 
-    height: 24px; 
-    background: var(--border); 
-    border-radius: 2px;
-    opacity: 0.3;
-  }
-}
-</style>
+<link rel="stylesheet" href="styles.css">
+<title>Control de Horas Extras y Coberturas</title>
 </head>
 <body>
 
-<header>
+<a href="#main-content" class="skip-link">Saltar al contenido principal</a>
+
+<header role="banner">
   <div class="header-wrap">
-    <div class="logo">⏱️ Control de Horas Extras</div>
-    <div class="header-actions">
-      <button class="btn btn-primary" onclick="openRecordModal()" style="display:none;" id="headerAddBtn">➕ Registrar</button>
-      
+    <div class="logo" aria-label="Logo">⏱️ Control de Horas Extras</div>
+    <nav class="header-actions" aria-label="Acciones principales">
       <div class="dropdown">
-        <button class="btn btn-icon" onclick="toggleDropdown('menuViews')" title="Vistas">📊</button>
-        <div class="dropdown-menu" id="menuViews">
-          <button onclick="openChartsModal()">📈 Gráficos</button>
-          <button onclick="openCalendarModal()">📅 Calendario</button>
-          <button onclick="openWorkerSummaryModal()">👤 Resumen</button>
+        <button class="btn btn-icon" onclick="toggleDropdown('menuViews')" aria-haspopup="menu" aria-expanded="false" aria-label="Vistas">📊</button>
+        <div class="dropdown-menu" id="menuViews" role="menu">
+          <button onclick="openChartsModal()" role="menuitem">📈 Gráficos</button>
+          <button onclick="openCalendarModal()" role="menuitem">📅 Calendario</button>
+          <button onclick="openWorkerSummaryModal()" role="menuitem">👤 Resumen Trabajador</button>
         </div>
       </div>
-      
+
       <div class="dropdown">
-        <button class="btn btn-icon" onclick="toggleDropdown('menuExport')" title="Exportar">📥</button>
-        <div class="dropdown-menu" id="menuExport">
-          <button onclick="exportExcel()">📊 Excel (.xlsx)</button>
-          <button onclick="exportJSON()">💾 JSON Backup</button>
-          <button onclick="document.getElementById('importJSONInput').click()">📤 Importar JSON</button>
-          <button onclick="printReport()">🖨️ PDF</button>
-          <button onclick="openEmailPDFModal()">✉️ Enviar PDF</button>
-          <button onclick="shareWhatsApp()">💬 WhatsApp</button>
+        <button class="btn btn-icon" onclick="toggleDropdown('menuExport')" aria-haspopup="menu" aria-expanded="false" aria-label="Exportar">📥</button>
+        <div class="dropdown-menu" id="menuExport" role="menu">
+          <button onclick="exportExcel()" role="menuitem">📊 Excel (.xlsx)</button>
+          <button onclick="exportJSON()" role="menuitem">💾 JSON Backup</button>
+          <button onclick="document.getElementById('importJSONInput').click()" role="menuitem">📤 Importar JSON</button>
+          <button onclick="exportCSV()" role="menuitem">📄 CSV</button>
+          <button onclick="printReport()" role="menuitem">🖨️ Imprimir PDF</button>
+          <button onclick="openEmailPDFModal()" role="menuitem">✉️ Enviar PDF Correo</button>
+          <button onclick="shareWhatsApp()" role="menuitem">💬 WhatsApp</button>
         </div>
       </div>
-      
+
       <div class="dropdown">
-        <button class="btn btn-icon" onclick="toggleDropdown('menuManage')" title="Gestionar">⚙️</button>
-        <div class="dropdown-menu" id="menuManage">
-          <button onclick="openWorkersModal()">👥 Trabajadores</button>
-          <button onclick="createBackup()">💾 Backup</button>
-          <button onclick="restoreBackup()">🔄 Restaurar</button>
-          <button onclick="installPWA()" id="installMenuBtn" style="display:none;">📲 Instalar App</button>
+        <button class="btn btn-icon" onclick="toggleDropdown('menuManage')" aria-haspopup="menu" aria-expanded="false" aria-label="Gestionar">⚙️</button>
+        <div class="dropdown-menu" id="menuManage" role="menu">
+          <button onclick="openWorkersModal()" role="menuitem">👥 Trabajadores / Unidades</button>
+          <button onclick="createBackup()" role="menuitem">💾 Crear Backup</button>
+          <button onclick="restoreBackup()" role="menuitem">🔄 Restaurar Backup</button>
+          <button onclick="installPWA()" id="installMenuBtn" style="display:none;" role="menuitem">📲 Instalar App</button>
         </div>
       </div>
-      
-      <button class="btn btn-icon" onclick="toggleTheme()" id="themeBtn" title="Cambiar tema">🌙</button>
-      <button class="btn btn-icon btn-danger" onclick="clearAllRecords()" title="Vaciar lista">🗑️</button>
-      <input type="file" id="importJSONInput" accept=".json" style="display:none" onchange="importJSON()">
-      <div id="backupStatus" class="backup-status"></div>
-    </div>
+
+      <button class="btn btn-icon" onclick="toggleTheme()" id="themeBtn" title="Cambiar tema" aria-label="Cambiar tema">🌙</button>
+      <button class="btn btn-icon btn-danger" onclick="clearAllRecords()" title="Vaciar lista" aria-label="Vaciar lista de registros">🗑️</button>
+      <input type="file" id="importJSONInput" accept=".json" style="display:none" onchange="importJSON()" aria-label="Importar archivo JSON">
+      <div id="backupStatus" class="backup-status" aria-live="polite"></div>
+    </nav>
   </div>
 </header>
 
 <!-- FAB -->
-<button class="fab" onclick="openRecordModal()" title="➕ Registrar Horas">+</button>
+<button class="fab" onclick="openRecordModal()" title="➕ Registrar Horas" aria-label="Registrar nueva hora extra">+</button>
 
-<div class="container">
+<main id="main-content" class="container" role="main">
 
   <!-- Resumen de Stats -->
-  <div class="stats-grid">
-    <div class="stat-box">
+  <section class="stats-grid" aria-label="Resumen de horas extras">
+    <article class="stat-box">
       <span class="title">Total Horas Extras</span>
       <span class="num" id="statTotal">0h</span>
-      <div class="bar"><div class="bar-fill" style="width:0%"></div></div>
-    </div>
-    <div class="stat-box">
+      <div class="bar" aria-hidden="true"><div class="bar-fill" style="width:0%"></div></div>
+    </article>
+    <article class="stat-box">
       <span class="title">Trabajadores Con Extras</span>
       <span class="num" id="statWorkers">0</span>
-      <div class="bar"><div class="bar-fill" style="width:0%"></div></div>
-    </div>
-    <div class="stat-box" style="border-color:var(--warning)">
+      <div class="bar" aria-hidden="true"><div class="bar-fill" style="width:0%"></div></div>
+    </article>
+    <article class="stat-box" style="border-color:var(--warning)">
       <span class="title" style="color:var(--warning)">👑 Máx. Horas Extras</span>
       <span class="num" id="statMaxWorker" style="color:var(--warning);font-size:15px;margin-top:4px;">-</span>
-    </div>
-    <div class="stat-box">
+    </article>
+    <article class="stat-box">
       <span class="title">Total Coberturas</span>
       <span class="num" id="statCoverages">0</span>
-      <div class="bar"><div class="bar-fill" style="width:0%"></div></div>
-    </div>
-  </div>
+      <div class="bar" aria-hidden="true"><div class="bar-fill" style="width:0%"></div></div>
+    </article>
+  </section>
 
   <!-- Barra de Filtro de Mes, Unidad y Búsqueda -->
-  <div class="top-bar">
-    <input type="text" class="search-input" style="flex:2;" id="searchInput" placeholder="🔍 Buscar por trabajador, unidad o persona a la que cubre..." oninput="render()">
-    <select class="search-input" style="flex:1;" id="monthFilter" onchange="render()">
+  <section class="top-bar" aria-label="Filtros">
+    <input type="search" class="search-input" style="flex:2;" id="searchInput" placeholder="🔍 Buscar por trabajador, unidad o persona a la que cubre..." oninput="render()" aria-label="Buscar registros">
+    <select class="search-input" style="flex:1;" id="monthFilter" onchange="render()" aria-label="Filtrar por mes">
       <option value="all">📅 Todas las Fechas</option>
     </select>
-    <select class="search-input" style="flex:1;" id="unitFilter" onchange="render()">
+    <select class="search-input" style="flex:1;" id="unitFilter" onchange="render()" aria-label="Filtrar por unidad">
       <option value="all">🏢 Todas las Unidades</option>
     </select>
-  </div>
+  </section>
 
-  <!-- Tabla de Registros Asignados -->
-  <div class="table-card">
+  <!-- Tabla de Registros -->
+  <article class="table-card" aria-label="Lista de registros de horas extras">
     <div class="table-responsive">
       <table>
         <thead>
           <tr>
-             <th class="sortable" onclick="sortTable('worker')"><span>Trabajador (Sustituto/a)</span><span class="sort-icon">↕️</span></th>
-             <th class="sortable" onclick="sortTable('date')"><span>Día / Fecha</span><span class="sort-icon">↕️</span></th>
-             <th class="sortable" onclick="sortTable('unit')"><span>Unidad</span><span class="sort-icon">↕️</span></th>
-             <th class="sortable" onclick="sortTable('covering')"><span>A Quien Cubre</span><span class="sort-icon">↕️</span></th>
-             <th class="sortable" onclick="sortTable('hours')"><span>Horas</span><span class="sort-icon">↕️</span></th>
-             <th class="sortable" onclick="sortTable('reason')"><span>Motivo / Nota</span><span class="sort-icon">↕️</span></th>
-             <th style="text-align:right">Acciones</th>
-           </tr>
+            <th class="sortable sorted-desc" onclick="sortTable('worker')" aria-sort="descending">Trabajador <span class="sort-icon asc">▲</span><span class="sort-icon desc">▼</span></th>
+            <th class="sortable" onclick="sortTable('date')" aria-sort="none">Fecha <span class="sort-icon asc">▲</span><span class="sort-icon desc">▼</span></th>
+            <th>Unidad</th>
+            <th>Tipo</th>
+            <th class="sortable" onclick="sortTable('hours')" aria-sort="none">Horas <span class="sort-icon asc">▲</span><span class="sort-icon desc">▼</span></th>
+            <th>Motivo / Nota</th>
+            <th>Acciones</th>
+          </tr>
         </thead>
         <tbody id="recordsTbody"></tbody>
       </table>
     </div>
-    <div class="empty-state" id="emptyState">
-      <h3>📌 No hay horas extras asignadas en este filtro</h3>
-      <p>Haz clic en el botón superior <b>"➕ Registrar Horas / Cobertura"</b> para añadir el primer registro.</p>
+    <div id="emptyState" class="empty-state" role="status" aria-live="polite" style="display:none;">
+      <div class="icon">📋</div>
+      <div>No hay registros de horas extras aún.</div>
+      <div style="font-size:13px;margin-top:8px;">Pulsa el botón <strong>+</strong> abajo a la derecha para registrar uno nuevo.</div>
     </div>
-  </div>
+  </article>
 
-</div>
+</main>
 
-<!-- Modal Registrar / Editar Horas Extras -->
-<div class="modal" id="recordModal">
+<!-- =========================================== -->
+<!-- MODALES                                       -->
+<!-- =========================================== -->
+
+<!-- Modal: Registrar / Editar registro -->
+<div class="modal" id="recordModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-hidden="true">
   <div class="modal-box">
     <h2 id="modalTitle">⏱️ Registrar Horas Extras / Cobertura</h2>
-    <input type="hidden" id="editingRecordId" value="">
-    
-    <div class="form-group">
-      <label>Trabajador que realiza las Horas (Sustituto/a)</label>
-      <input type="text" id="recWorker" list="workersDatalist" placeholder="Selecciona o escribe el nombre completo del trabajador">
-      <datalist id="workersDatalist"></datalist>
-    </div>
-
-    <div class="form-group">
-      <label>Unidad Asignada</label>
-      <select id="recUnit"></select>
-    </div>
-
-    <div class="form-row">
-      <div class="form-group">
-        <label>Día / Fecha</label>
-        <input type="date" id="recDate">
+    <form onsubmit="event.preventDefault();saveRecord();">
+      <input type="hidden" id="editingRecordId" value="">
+      <div class="form-row">
+        <div class="form-group" style="flex:1;">
+          <label for="recDate">Día / Fecha</label>
+          <input type="date" id="recDate" required>
+        </div>
+        <div class="form-group" style="flex:1;">
+          <label for="recHours">Horas Extras</label>
+          <input type="number" id="recHours" value="12" step="0.5" min="0.5" max="24" required>
+        </div>
       </div>
       <div class="form-group">
-        <label>Horas Extras a Cubrir</label>
-        <input type="number" id="recHours" value="12" step="0.5" min="0.5" max="24">
+        <label for="recUnit">Unidad Asignada</label>
+        <select id="recUnit" required></select>
       </div>
-    </div>
-
-    <div class="form-group">
-      <label>A Quien Cubre (Opcional - si es sustitución / baja)</label>
-      <input type="text" id="recCovering" list="workersDatalist" placeholder="Ej. LOPEZ GONZALEZ, GLORIA (o vacio si es extra directa)">
-    </div>
-
-    <div class="form-group">
-      <label>Motivo / Nota (Opcional)</label>
-      <input type="text" id="recReason" placeholder="Ej. Indisposición, Baja IT, Guardia 12h Día...">
-    </div>
-
-    <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:14px;">
-      <button class="btn btn-sm" onclick="setReason('Baja IT / Indisposición')">🤒 Baja IT</button>
-      <button class="btn btn-sm" onclick="setReason('Guardia 12h Día')">☀️ 12h Día</button>
-      <button class="btn btn-sm" onclick="setReason('Guardia 12h Noche')">🌙 12h Noche</button>
-      <button class="btn btn-sm" onclick="setReason('Guardia 24h Completa')">⌛ 24h Completa</button>
-      <button class="btn btn-sm" onclick="setReason('Refuerzo Evento')">⚡ Refuerzo</button>
-    </div>
-
-    <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
-      <button class="btn" onclick="closeModal('recordModal')">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveRecord()">Guardar Registro</button>
-    </div>
+      <div class="form-group">
+        <label for="recWorker">Trabajador (Sustituto/a)</label>
+        <input type="text" id="recWorker" list="workersDatalist" placeholder="APELLIDOS, NOMBRE" required>
+        <datalist id="workersDatalist"></datalist>
+      </div>
+      <div class="form-group">
+        <label for="recCovering">A Quién Cubre (si aplica)</label>
+        <input type="text" id="recCovering" placeholder="APELLIDOS, NOMBRE">
+      </div>
+      <div class="form-group">
+        <label for="recReason">Motivo / Nota</label>
+        <textarea id="recReason" rows="3" placeholder="Descripción breve"></textarea>
+        <div class="quick-reasons" aria-label="Motivos rápidos">
+          <button type="button" class="btn" onclick="setReason('Horas extras asignadas')">Asignadas</button>
+          <button type="button" class="btn" onclick="setReason('Cobertura por baja')">Baja</button>
+          <button type="button" class="btn" onclick="setReason('Cobertura por festivos')">Festivo</button>
+          <button type="button" class="btn" onclick="setReason('Cobertura por vacaciones')">Vacaciones</button>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+        <button type="button" class="btn" onclick="closeModal('recordModal')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">💾 Guardar</button>
+      </div>
+    </form>
   </div>
 </div>
 
-<!-- Modal Gráficos de Distribución -->
-<div class="modal" id="chartsModal">
-  <div class="modal-box" style="max-width:650px;">
-    <h2>📊 Distribución Visual de Horas Extras</h2>
-    
+<!-- Modal: Gráficos -->
+<div class="modal" id="chartsModal" role="dialog" aria-modal="true" aria-labelledby="chartsTitle" aria-hidden="true">
+  <div class="modal-box" style="max-width:600px;">
+    <h2 id="chartsTitle">📊 Gráficos y Distribución</h2>
     <div style="margin-bottom:20px;">
-      <h3 style="font-size:14px;color:var(--primary);margin-bottom:10px;">Unidades con Más Horas Extras</h3>
+      <h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:12px;">Horas por Unidad</h3>
       <div id="unitChartsContainer"></div>
     </div>
-
     <div>
-      <h3 style="font-size:14px;color:var(--primary);margin-bottom:10px;">Horas por Motivos / Coberturas</h3>
+      <h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:12px;">Distribución por Motivo</h3>
       <div id="reasonChartsContainer"></div>
     </div>
-
-    <div style="display:flex; justify-content:flex-end; margin-top:20px;">
-      <button class="btn" onclick="closeModal('chartsModal')">Cerrar Gráficos</button>
+    <div style="display:flex;justify-content:flex-end;margin-top:16px;">
+      <button class="btn" onclick="closeModal('chartsModal')">Cerrar</button>
     </div>
   </div>
 </div>
 
-<!-- Modal Enviar PDF al Correo -->
-<div class="modal" id="emailPDFModal">
-  <div class="modal-box">
-    <h2>✉️ Enviar PDF al Correo</h2>
-    
-    <div class="form-group">
-      <label>Correo Electrónico Destinatario</label>
-      <input type="email" id="emailPDFTo" placeholder="Ej. rrhh@empresa.com, tu_correo@gmail.com">
-    </div>
-
-    <div class="form-group">
-      <label>Asunto del Correo</label>
-      <input type="text" id="emailPDFSubject" value="Informe Oficial de Horas Extras y Coberturas">
-    </div>
-
-    <div style="background:var(--bg);border:1px solid var(--border);padding:12px;border-radius:8px;font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.5;">
-      📄 <b>Generación Oficial del Documento PDF:</b><br>
-      Al hacer clic en el botón inferior se compilará el informe oficial en PDF. En dispositivos móviles se abrirá el menú nativo para compartir por Gmail, Outlook o WhatsApp con el documento adjunto. En ordenador se descargará el PDF listo para enviar.
-    </div>
-
-    <div style="display:flex; justify-content:flex-end; gap:8px;">
-      <button class="btn" onclick="closeModal('emailPDFModal')">Cancelar</button>
-      <button class="btn btn-primary" onclick="generateAndSendPDF()">📄 Generar PDF y Compartir / Enviar</button>
-    </div>
-  </div>
-</div>
-
-<!-- Modal Calendario -->
-<div class="modal" id="calendarModal">
+<!-- Modal: Calendario -->
+<div class="modal" id="calendarModal" role="dialog" aria-modal="true" aria-labelledby="calendarTitle" aria-hidden="true">
   <div class="modal-box" style="max-width:500px;">
-    <h2>📅 Calendario de Horas Extras</h2>
+    <h2 id="calendarTitle">📅 Calendario de Horas Extras</h2>
     <div id="calendarContainer"></div>
-    <div style="display:flex; justify-content:flex-end; margin-top:16px;">
+    <div style="display:flex;justify-content:flex-end;margin-top:16px;">
       <button class="btn" onclick="closeModal('calendarModal')">Cerrar</button>
     </div>
   </div>
 </div>
 
-<!-- Modal Resumen por Trabajador -->
-<div class="modal" id="workerSummaryModal">
+<!-- Modal: Resumen por Trabajador -->
+<div class="modal" id="workerSummaryModal" role="dialog" aria-modal="true" aria-labelledby="summaryTitle" aria-hidden="true">
   <div class="modal-box" style="max-width:700px;">
-    <h2>👤 Resumen por Trabajador</h2>
+    <h2 id="summaryTitle">👤 Resumen por Trabajador</h2>
     <div class="form-group">
-      <label>Filtrar por mes</label>
+      <label for="summaryMonthFilter">Filtrar por mes</label>
       <select id="summaryMonthFilter" onchange="renderWorkerSummary()">
         <option value="all">Todos</option>
       </select>
@@ -794,1305 +242,75 @@ tr { position: relative; }
         <tbody id="workerSummaryTbody"></tbody>
       </table>
     </div>
-    <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
       <button class="btn" onclick="closeModal('workerSummaryModal')">Cerrar</button>
       <button class="btn btn-primary" onclick="exportWorkerSummaryExcel()">📥 Exportar Excel</button>
     </div>
   </div>
 </div>
 
-<!-- Modal Gestionar Trabajadores -->
-<div class="modal" id="workersModal">
+<!-- Modal: Gestionar Trabajadores / Unidades -->
+<div class="modal" id="workersModal" role="dialog" aria-modal="true" aria-labelledby="workersTitle" aria-hidden="true">
   <div class="modal-box" style="max-width:600px;">
-    <h2>👥 Gestionar Trabajadores</h2>
+    <h2 id="workersTitle">👥 Gestionar Trabajadores / Unidades</h2>
     <div class="form-group">
-      <label>Seleccionar Unidad</label>
+      <label for="manageUnitSelect">Seleccionar Unidad</label>
       <select id="manageUnitSelect" onchange="renderWorkersList()"></select>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:12px;">
-      <input type="text" id="editUnitName" placeholder="Nombre de la unidad" style="flex:1;">
+      <input type="text" id="editUnitName" placeholder="Nombre de la unidad" style="flex:1;" aria-label="Editar nombre de unidad">
       <button class="btn btn-sm" onclick="editUnit()">✏️ Editar Indicativo</button>
     </div>
-    <div style="max-height:300px;overflow-y:auto;margin-bottom:16px;border:1px solid var(--border);border-radius:8px;">
+    <div style="max-height:280px;overflow-y:auto;margin-bottom:16px;border:1px solid var(--border);border-radius:10px;">
       <div id="workersList"></div>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:16px;">
       <div style="flex:1;">
-        <input type="text" id="newWorkerName" placeholder="APELLIDOS, NOMBRE" style="width:100%;">
+        <input type="text" id="newWorkerName" placeholder="APELLIDOS, NOMBRE" style="width:100%;" aria-label="Nuevo trabajador">
       </div>
       <button class="btn btn-primary" onclick="addNewWorker()">+ Trabajador</button>
-      <button class="btn btn-danger" onclick="deleteUnit()">🗑️ Eliminar</button>
+      <button class="btn btn-danger" onclick="deleteUnit()">🗑️ Eliminar Unidad</button>
     </div>
     <hr style="border:none;border-top:1px solid var(--border);margin:16px 0;">
     <h3 style="font-size:14px;margin-bottom:12px;">🚑 Agregar Nueva Unidad</h3>
-    <div class="form-row" style="margin-bottom:8px;">
-      <button class="btn btn-sm" onclick="addPresetUnit('TSNU 24H - AMBULANCIA')">+ TSNU 24H</button>
-      <button class="btn btn-sm" onclick="addPresetUnit('TSNU 12H - AMBULANCIA DE 07H A 19H')">+ TSNU 12H (07-19)</button>
-      <button class="btn btn-sm" onclick="addPresetUnit('TSNU 12H - AMBULANCIA DE 10H A 22H')">+ TSNU 12H (10-22)</button>
+    <div class="form-row" style="margin-bottom:8px;gap:8px;">
+      <button type="button" class="btn btn-sm" onclick="addPresetUnit('TSNU 24H - AMBULANCIA')">+ TSNU 24H</button>
+      <button type="button" class="btn btn-sm" onclick="addPresetUnit('TSNU 12H - AMBULANCIA DE 07H A 19H')">+ TSNU 12H (07-19)</button>
+      <button type="button" class="btn btn-sm" onclick="addPresetUnit('TSNU 12H - AMBULANCIA DE 10H A 22H')">+ TSNU 12H (10-22)</button>
     </div>
-    <div class="form-row">
-      <div style="flex:2;">
-        <input type="text" id="newUnitName" placeholder="Nombre personalizado (ej: UNIDAD SVB 1400 LANZAROTE - 24H)">
-      </div>
-      <div style="flex:1;">
-        <button class="btn" onclick="addCustomUnit()" style="width:100%;">+ Unit Custom</button>
-      </div>
+    <div class="form-row" style="gap:8px;">
+      <input type="text" id="newUnitName" placeholder="Nombre personalizado (ej: UNIDAD SVB 1400 LANZAROTE - 24H)" style="flex:2;" aria-label="Nombre de nueva unidad">
+      <button type="button" class="btn" onclick="addCustomUnit()" style="flex:1;">+ Unit Custom</button>
     </div>
-    <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
       <button class="btn" onclick="closeModal('workersModal')">Cerrar</button>
     </div>
   </div>
 </div>
 
-<script>
-const INITIAL_UNITS = [
-  { unit: "UNIDAD SVB 1310 ARRECIFE - 24H/DIA DE 09H A 09H", workers: ["FAJARDO RODRIGUEZ, ADRIAN", "NODA ALAMO, DAVID", "LOPEZ BETANCORT, JUAN JOSE", "LOPEZ GONZALEZ, GLORIA", "CARABALLO HERNANDEZ, JAVIER", "CORUJO FERNANDEZ, JONAY", "PEREZ CORUJO, DIANA", "RAMIREZ CAÑADA, FABIAN", "GUADALUPE HERNANDEZ, RAQUEL"] },
-  { unit: "UNIDAD SVB 1320 ARRECIFE - 12H/DIA DE 10H A 22H", workers: ["HERNANDEZ CASTAÑO, NAREN DARNEL", "MORALES GONZALEZ, GILBERTO", "HERANDEZ MARTIN, HECTOR", "ROJAS RODRIGUEZ, PAULA", "VAZQUEZ MARQUEZ, ALEXANDRA"] },
-  { unit: "UNIDAD SVA 1390 ARRECIFE - 24H/DIA DE 09H A 09H", workers: ["BETANCORT DUARTE, CARLOS DAVID", "LEON FERNANDEZ, BORJA", "MOREIRA PEREZ, RAUL", "BETANCORT CURBELO, RUBEN JONAS", "MORENO BRITO, JEFFREY", "RODRIGUEZ LORENZO, MANUEL", "GUADALUPE GARCIA, ANGELA", "BARBER FERNANDEZ, JOSE ANTONIO", "CABRERA ALAYON, CRISTIAN"] },
-  { unit: "UNIDAD SVB 1311 ARRECIFE - 24H/DIA DE 09H A 09H", workers: ["PEREZ ALONSO, IVAN CARLOS", "LONGWORTH, DYLAN JOHN", "VILAVERT SANCHEZ, ANGEL DAVID", "IRUNE GARCIA BADIOLA", "VERGARA ALZATE, ANDRES", "GONZALEZ OCAMPO, JUAN CARLOS", "ROQUE RUEDA, LEYRE", "PEÑA IRRAZABAL, MARIA FERNANDA", "VALIENTE RODRIGUEZ, ANTONIO", "PAETOW LOZANO, SARA", "RAMIREZ FIGUERA, CARLA", "MEDINA DE LEON, NAYADE"] },
-  { unit: "UNIDAD SVB 1312 TIAS - 24H/DIA DE 09H A 09H", workers: ["MARTINEZ PEREZ, RUBEN", "BETANCOR DIAZ, CORAIMA", "AFONSO SANTANA, DIANA", "RODIÑO SANCHEZ, MANUEL", "LOPEZ DAUTA, ROBERTO AIRAM", "PEREZ RODRIGUEZ, ZENAIDA", "MIRANDA MORALES, ISRAEL", "GRILLO DIAZ, MARCOS DAVID", "SANTANA MONTELONGO. JUAN VICENTE"] },
-  { unit: "UNIDAD SVB 1313 TIAS - 24H/DIA DE 09H A 09H", workers: ["MARTIN CALERO, ADRIAN", "BALLESTEROS MALDONADO, FRANCISCO JAVIER", "GONZALEZ AMORIN, DAVID", "RODRIGUEZ GUERRA, CRISTINA", "CAVA HURTADO, MOISES LUCIO", "MORALES PACHECO, CLAUDIA", "GARCIA PEREYRA, JOSE AGUSTIN", "ESCALONA MARTINEZ, JOSE ALEJANDRO"] },
-  { unit: "UNIDAD SVB 1314 PLAYABLANCA - 24H/DIA DE 09H A 09H", workers: ["TIRADO MARTIN, ALEJANDRO", "DASA TALAVERA, ALEJANDRA", "RODRIGUEZ CABRERA, CRISTO DE JESUS", "MENA BARANDICA, ELEN DAIAN", "FONDON RODRIGUEZ, GONZALO", "SANCHEZ MARTINEZ, JORGE ANTONIO", "CEDRES GONZALEZ, HECTOR", "MARTIN LEMES, MARIA MACARENA"] },
-  { unit: "UNIDAD SVB 1315 ARRIETA - 24H/DIA DE 09H A 09H", workers: ["GARCIA CARBALLO, MIGUEL ANGEL", "TABARES MARQUEZ, TEXENERY ROSA", "PEREZ CUADROS, EVA MARIA", "MEHAND MARTIN, YASSIN", "GONZALEZ CALLERO, FRANCISCO JAVIER", "MARTIN ARMAS, ROBERTO", "BARREIRO DO CARMO, JOAQUIN", "CEDRES LEMES, MARTIN MANUEL"] },
-  { unit: "UNIDAD SVA 1391 PLAYABLANCA - 24H/DIA DE 09H A 09H", workers: ["ALGUACIL MIRALLES, ALEJANDRO", "ARCA VASQUEZ, BRYAN", "MOREIRA ARMAS, ANTONIO", "ROSARIO GALINDO, ELISABET DEL PINO", "RODRIGUEZ NOZAL, MARIA VALLE", "FONDON RODRIGUEZ, OSCAR", "ALVAREZ PEREZ, JAZMINA MARIA", "SILVA HERNANDEZ, ACOIDAN"] },
-  { unit: "UNIDADES TSNU DE L/V 07H A 15H", workers: ["CEDRES DORTA, TANIA", "SCHLOSSER, MARIE", "MORENO GÜEMES, ROCIO", "BOLAÑOS ARANDA, JOSE IGNACIO", "MEDINA CASANOVA, ADRIAN", "CABRERA MARQUEZ, MIGUEL ANGEL", "MARTIN FONTES, IBAN", "CABRERA SUAREZ, NATANAEL", "ALESSANDRO OMAR, PARTINICO", "GOMEZ RAMIREZ, ZULEIMA", "GONZALEZ CURBELO, GUACIMARA", "SAMUEL JHOSUE MOYA PAREDES", "PEREZ DOMINGUEZ, IRIEN", "TAVIO GARCIA, MARIA DOLORES", "BONILLA CURBELO, ANTONIO", "ZIZI BAGDAD, YUNAS", "SOSA ALMEIDA, NEREA", "MARTIN FONTES, JUAN GINES", "CORDERO QUESADA, ALEJANDRO", "CASADO FARIÑA, CARLOS JESUS", "CAMARA CAMARA, KADY", "LOPEZ CASTAÑEYRA, GUILLERMO", "GONZALEZ CALLERO, CRISTO MANUEL", "RODRIGUEZ CABRERA, ALVARO", "MARTIN GARCIA, RUYMAN", "MARRERO GARCIA, ALFREDO", "LARA DELGADO, GEMA", "SANCHEZ GARCIA, JENNIFER", "HERNANDEZ GARCIA, CARMEN ROSA", "SALCES ALVAREZ, MANUEL", "RUIZ HIGUERA, MANUEL JESUS", "VICTORIA HERNANDEZ, BRYAN STEVEN", "VIÑA TEJERA, JONAY MANUEL", "CERON MERINO, RAMON JOSE", "GALLARDO ORTIZ, JESUS", "GOMEZ MARTINEZ, JOANA IVETH", "COLAS MARCOS, XABIER", "GODDARD BAGSHAW, LUKE", "PEREZ CUBAS, ROMEN", "GASPAR GUERRERO, ANTONIO JESUS", "LOPEZ DIAZ, RUYMAN", "VEGAS VALLADARES, DARWIN", "ROSARIO MONTELONGO, LORENZO", "ARROCHA CEDRES, ADELTO JAVIER", "RODRIGUEZ MORALES, ITHAISA", "PEREZ GARCIA, XIOMARA", "ARMAS CISILIA, DANIEL", "MENDEZ MARRERO, ALFONSO", "OSPINA ANGEL, SHARON", "BARRIO MARGULLON, SORAYA", "JUAN PERDOMO, ABELARDO", "HERNADEZ MOYCANA", "HERNANDEZ RAIZA, OMAIRA"] },
-  { unit: "TSNU 24H - AMBULANCIA", workers: [] },
-  { unit: "TSNU 12H - AMBULANCIA DE 07H A 19H", workers: [] },
-  { unit: "TSNU 12H - AMBULANCIA DE 10H A 22H", workers: [] }
-];
-
-const UNITS_KEY = 'horas_extras_units_v1';
-const BACKUP_KEY = 'horas_extras_backup_v1';
-
-function getUnits() {
-  try {
-    const saved = localStorage.getItem(UNITS_KEY);
-    if (saved) return JSON.parse(saved);
-  } catch(e) {}
-  return JSON.parse(JSON.stringify(INITIAL_UNITS));
-}
-
-function saveUnits(units) {
-  localStorage.setItem(UNITS_KEY, JSON.stringify(units));
-}
-
-function addWorker(unitIdx, workerName) {
-  const units = getUnits();
-  if (units[unitIdx]) {
-    const upper = workerName.trim().toUpperCase();
-    if (!units[unitIdx].workers.includes(upper)) {
-      units[unitIdx].workers.push(upper);
-      saveUnits(units);
-    }
-  }
-}
-
-function removeWorker(unitIdx, workerIdx) {
-  const units = getUnits();
-  if (units[unitIdx] && units[unitIdx].workers[workerIdx]) {
-    units[unitIdx].workers.splice(workerIdx, 1);
-    saveUnits(units);
-  }
-}
-
-function addUnit(unitName) {
-  const units = getUnits();
-  const upper = unitName.trim().toUpperCase();
-  if (!upper) return false;
-  if (units.some(u => u.unit === upper)) { showToastMsg('Esa unidad ya existe.', 'warning'); return false; }
-  units.push({ unit: upper, workers: [] });
-  saveUnits(units);
-  return true;
-}
-
-function removeUnit(unitIdx) {
-  const units = getUnits();
-  if (!units[unitIdx]) return;
-  if (!confirm(`¿Eliminar la unidad "${units[unitIdx].unit}"? Se borrarán todos sus trabajadores.`)) return;
-  units.splice(unitIdx, 1);
-  saveUnits(units);
-}
-
-const STORAGE_KEY = 'horas_extras_log_v1';
-let records = loadRecords();
-let sortState = { column: 'date', direction: 'desc' };
-
-function loadRecords() {
-  try {
-    const r = localStorage.getItem(STORAGE_KEY);
-    if (r) return JSON.parse(r);
-  } catch(e) {}
-  return [];
-}
-
-function saveRecords() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
-}
-
-function sortTable(column) {
-  if (sortState.column === column) {
-    sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
-  } else {
-    sortState.column = column;
-    sortState.direction = 'desc';
-  }
-
-  // Update header classes
-  document.querySelectorAll('th.sortable').forEach(th => {
-    th.classList.remove('sorted-asc', 'sorted-desc');
-  });
-  const activeTh = document.querySelector(`th.sortable[onclick="sortTable('${column}')"]`);
-  if (activeTh) {
-    activeTh.classList.add(sortState.direction === 'asc' ? 'sorted-asc' : 'sorted-desc');
-  }
-
-  render();
-}
-
-function applySort(recordsToSort) {
-  const { column, direction } = sortState;
-  return recordsToSort.slice().sort((a, b) => {
-    let aVal = a[column] ?? '';
-    let bVal = b[column] ?? '';
-
-    // Date sorting: parse DD/MM/YYYY
-    if (column === 'date') {
-      const parseDate = (d) => {
-        const parts = d.split('/');
-        return parts.length === 3 ? new Date(`${parts[2]}-${parts[1]}-${parts[0]}`) : new Date();
-      };
-      aVal = parseDate(a.date).getTime();
-      bVal = parseDate(b.date).getTime();
-    }
-
-    // Numeric sorting for hours
-    if (column === 'hours') {
-      aVal = parseFloat(aVal);
-      bVal = parseFloat(bVal);
-    }
-
-    const comparison = String(aVal).localeCompare(String(bVal), 'es-ES', { numeric: true });
-    return direction === 'asc' ? comparison : -comparison;
-  });
-}
-
-function initDatalists() {
-  const uSel = document.getElementById('recUnit');
-  uSel.innerHTML = '';
-  getUnits().forEach(u => {
-    const opt = document.createElement('option');
-    opt.value = u.unit;
-    opt.textContent = u.unit.split(' - ')[0];
-    uSel.appendChild(opt);
-  });
-
-  uSel.addEventListener('change', filterWorkersByUnit);
-  const dl = document.getElementById('workersDatalist');
-  dl.innerHTML = '';
-}
-
-function filterWorkersByUnit() {
-  const unit = document.getElementById('recUnit').value;
-  const dl = document.getElementById('workersDatalist');
-  dl.innerHTML = '';
-
-  if (!unit) {
-    const placeholder = document.createElement('option');
-    placeholder.value = '';
-    placeholder.disabled = true;
-    placeholder.textContent = 'Selecciona una unidad primero';
-    dl.appendChild(placeholder);
-    return;
-  }
-
-  const unitObj = getUnits().find(u => u.unit === unit);
-  if (unitObj) {
-    unitObj.workers.forEach(w => {
-      const opt = document.createElement('option');
-      opt.value = w;
-      dl.appendChild(opt);
-    });
-  }
-}
-
-function setSelectedUnit(unitValue) {
-  const uSel = document.getElementById('recUnit');
-  const idx = Array.from(uSel.options).findIndex(o => o.value === unitValue);
-  uSel.selectedIndex = idx >= 0 ? idx : 0;
-  filterWorkersByUnit();
-}
-
-function openRecordModal() {
-  document.getElementById('editingRecordId').value = '';
-  document.getElementById('modalTitle').innerText = '⏱️ Registrar Horas Extras / Cobertura';
-  document.getElementById('recWorker').value = '';
-  document.getElementById('recUnit').selectedIndex = 0;
-  document.getElementById('recCovering').value = '';
-  document.getElementById('recReason').value = '';
-  document.getElementById('recHours').value = 12;
-  document.getElementById('recDate').value = new Date().toISOString().slice(0, 10);
-  filterWorkersByUnit();
-  document.getElementById('recordModal').classList.add('open');
-}
-
-function editRecord(id) {
-  const r = records.find(x => x.id === id);
-  if (!r) return;
-  document.getElementById('editingRecordId').value = id;
-  document.getElementById('modalTitle').innerText = '✏️ Editar Registro de Horas';
-  document.getElementById('recWorker').value = r.worker;
-  document.getElementById('recUnit').value = r.unit;
-  document.getElementById('recHours').value = r.hours;
-  document.getElementById('recCovering').value = r.covering.includes('N/A') ? '' : r.covering;
-  document.getElementById('recReason').value = r.reason;
-  filterWorkersByUnit();
-
-  // Convert date format DD/MM/YYYY to YYYY-MM-DD for date input
-  if (r.date) {
-    const parts = r.date.split('/');
-    if (parts.length === 3) {
-      document.getElementById('recDate').value = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
-    } else {
-      document.getElementById('recDate').value = new Date().toISOString().slice(0, 10);
-    }
-  }
-
-  document.getElementById('recordModal').classList.add('open');
-}
-
-function setReason(txt) {
-  document.getElementById('recReason').value = txt;
-}
-
-function saveRecord() {
-  const editId = document.getElementById('editingRecordId').value;
-  const worker = document.getElementById('recWorker').value.trim().toUpperCase();
-  const unit = document.getElementById('recUnit').value;
-  const dateVal = document.getElementById('recDate').value;
-  const hours = parseFloat(document.getElementById('recHours').value) || 0;
-  const covering = document.getElementById('recCovering').value.trim().toUpperCase();
-  const reason = document.getElementById('recReason').value.trim();
-
-  if (!worker) {
-    showToastMsg('Introduce el nombre del trabajador.', 'warning');
-    return;
-  }
-  if (hours <= 0) {
-    showToastMsg('Las horas deben ser mayores a 0.', 'warning');
-    return;
-  }
-
-  const formattedDate = dateVal ? new Date(dateVal + 'T00:00:00').toLocaleDateString('es-ES') : new Date().toLocaleDateString('es-ES');
-
-  // Check for duplicate worker on same date/unit
-  const isDuplicate = records.some(r =>
-    r.id !== parseInt(editId) &&
-    r.worker === worker &&
-    r.unit === unit &&
-    r.date === formattedDate
-  );
-  if (isDuplicate) {
-    showToastMsg(`El trabajador "${worker}" ya está registrado para el ${formattedDate} en ${unit.split(' - ')[0]}.`, 'error');
-    return;
-  }
-
-  // Check for overlap: same worker, same date, different unit
-  const overlapRecord = records.find(r =>
-    r.id !== parseInt(editId) &&
-    r.worker === worker &&
-    r.date === formattedDate
-  );
-  if (overlapRecord) {
-    const msg = `El trabajador "${worker}" ya tiene horas el ${formattedDate} en: ${overlapRecord.unit.split(' - ')[0]}.\n\n¿Deseas continuar con "${unit.split(' - ')[0]}" de todas formas?`;
-    if (!confirm(msg)) return;
-  }
-
-  if (editId) {
-    // Edit existing
-    const idx = records.findIndex(r => r.id === parseInt(editId));
-    if (idx !== -1) {
-      records[idx].worker = worker;
-      records[idx].unit = unit;
-      records[idx].date = formattedDate;
-      records[idx].hours = hours;
-      records[idx].covering = covering || 'N/A (Extra Directa)';
-      records[idx].reason = reason || 'Horas extras asignadas';
-    }
-  } else {
-    // Create new
-    records.unshift({
-      id: Date.now(),
-      worker,
-      unit,
-      date: formattedDate,
-      hours,
-      covering: covering || 'N/A (Extra Directa)',
-      reason: reason || 'Horas extras asignadas',
-      createdAt: new Date().toLocaleString('es-ES')
-    });
-  }
-
-  saveRecords();
-  render();
-  closeModal('recordModal');
-  showToastMsg(editId ? 'Registro actualizado.' : 'Registro creado.', 'success');
-}
-
-function deleteRecord(id) {
-  if (!confirm("¿Eliminar este registro de horas extras?")) return;
-  records = records.filter(r => r.id !== id);
-  saveRecords();
-  render();
-  showToastMsg('Registro eliminado.', 'success');
-}
-
-function clearAllRecords() {
-  if (records.length === 0) return;
-  if (!confirm("¿Seguro que deseas vaciar toda la lista de horas extras asignadas?")) return;
-  records = [];
-  saveRecords();
-  render();
-  showToastMsg('Lista vaciada.', 'success');
-}
-
-function initMonthFilter() {
-  const mSel = document.getElementById('monthFilter');
-  mSel.innerHTML = '<option value="all">📅 Todas las Fechas</option>';
-  
-  const now = new Date();
-  const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  
-  // Current month and past 5 months
-  for (let i = 0; i < 6; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const monthNum = d.getMonth() + 1;
-    const year = d.getFullYear();
-    const label = i === 0 ? '🗓️ Este Mes' : i === 1 ? '📅 Mes Pasado' : `📅 ${months[d.getMonth()]} ${year}`;
-    const opt = document.createElement('option');
-    opt.value = `month_${year}_${monthNum}`;
-    opt.textContent = `${label} (${months[d.getMonth()].slice(0,3)} ${year})`;
-    if (i === 0) opt.selected = true;
-    mSel.appendChild(opt);
-  }
-}
-
-function initUnitFilter() {
-  const uSel = document.getElementById('unitFilter');
-  uSel.innerHTML = '<option value="all">🏢 Todas las Unidades</option>';
-  
-  getUnits().forEach(u => {
-    const opt = document.createElement('option');
-    opt.value = u.unit;
-    opt.textContent = u.unit.split(' - ')[0];
-    uSel.appendChild(opt);
-  });
-}
-
-function render() {
-  const query = (document.getElementById('searchInput').value || '').toLowerCase().trim();
-  const monthFilter = document.getElementById('monthFilter').value;
-  const unitFilter = document.getElementById('unitFilter').value;
-  const tbody = document.getElementById('recordsTbody');
-  const emptyState = document.getElementById('emptyState');
-  tbody.innerHTML = '';
-
-  let filtered = records;
-
-  // Month filter (dynamic based on current month)
-  if (monthFilter.startsWith('month_')) {
-    const [, , year, month] = monthFilter.split('_');
-    const monthNum = parseInt(month);
-    filtered = filtered.filter(r => {
-      const parts = r.date.split('/');
-      if (parts.length === 3) {
-        return parseInt(parts[1]) === monthNum && parseInt(parts[2]) === parseInt(year);
-      }
-      return false;
-    });
-  }
-
-  // Unit filter
-  if (unitFilter !== 'all') {
-    filtered = filtered.filter(r => r.unit === unitFilter);
-  }
-
-  // Search filter
-  if (query) {
-    filtered = filtered.filter(r => 
-      r.worker.toLowerCase().includes(query) ||
-      r.unit.toLowerCase().includes(query) ||
-      r.covering.toLowerCase().includes(query) ||
-      r.reason.toLowerCase().includes(query) ||
-      r.date.includes(query)
-    );
-  }
-
-  // Apply sorting
-  filtered = applySort(filtered);
-
-  if (filtered.length === 0) {
-    emptyState.style.display = 'block';
-  } else {
-    emptyState.style.display = 'none';
-
-    filtered.forEach(r => {
-      const tr = document.createElement('tr');
-      const isCovering = r.covering && !r.covering.includes('N/A');
-
-      tr.innerHTML = `
-        <td style="font-weight:700;">${escHtml(r.worker)}</td>
-        <td>📅 ${escHtml(r.date)}</td>
-        <td><span style="font-size:12px;color:var(--muted)">${escHtml(r.unit.split(' - ')[0])}</span></td>
-        <td>${isCovering ? `<span class="badge badge-covered">🔄 ${escHtml(r.covering)}</span>` : `<span class="badge badge-direct">⚡ Extra Directa</span>`}</td>
-        <td><span class="badge badge-hours">+${r.hours}h</span></td>
-        <td>${escHtml(r.reason)}</td>
-        <td style="text-align:right">
-          <button class="btn btn-sm" onclick="editRecord(${r.id})">✏️ Editar</button>
-          <button class="btn btn-sm btn-danger" onclick="deleteRecord(${r.id})">✕ Borrar</button>
-        </td>
-      `;
-      tbody.appendChild(tr);
-    });
-  }
-
-  // Calculate Stats
-  let totalHours = 0;
-  const workerTotals = {};
-  let coverCount = 0;
-
-  filtered.forEach(r => {
-    totalHours += r.hours;
-    workerTotals[r.worker] = (workerTotals[r.worker] || 0) + r.hours;
-    if (r.covering && !r.covering.includes('N/A')) coverCount++;
-  });
-
-  const uniqueWorkers = Object.keys(workerTotals).length;
-  let maxWorkerName = '-';
-  let maxHours = 0;
-
-  for (const [w, h] of Object.entries(workerTotals)) {
-    if (h > maxHours) {
-      maxHours = h;
-      maxWorkerName = `${w} (+${h}h)`;
-    }
-  }
-
-  document.getElementById('statTotal').innerText = totalHours + 'h';
-  document.getElementById('statWorkers').innerText = uniqueWorkers;
-  document.getElementById('statMaxWorker').innerText = maxHours > 0 ? maxWorkerName : '-';
-  document.getElementById('statCoverages').innerText = coverCount;
-  updateStatsBars(totalHours, uniqueWorkers, coverCount);
-
-  // Update sort indicators
-  document.querySelectorAll('th.sortable').forEach(th => {
-    th.classList.remove('sorted-asc', 'sorted-desc');
-    if (th.getAttribute('onclick') === `sortTable('${sortState.column}')`) {
-      th.classList.add(sortState.direction === 'asc' ? 'sorted-asc' : 'sorted-desc');
-    }
-  });
-}
-
-function openChartsModal() {
-  const unitTotals = {};
-  const reasonTotals = {};
-  let maxUnitHours = 0;
-
-  records.forEach(r => {
-    const uName = r.unit.split(' - ')[0];
-    unitTotals[uName] = (unitTotals[uName] || 0) + r.hours;
-    if (unitTotals[uName] > maxUnitHours) maxUnitHours = unitTotals[uName];
-
-    const rName = r.reason.split('/')[0].trim();
-    reasonTotals[rName] = (reasonTotals[rName] || 0) + r.hours;
-  });
-
-  const unitContainer = document.getElementById('unitChartsContainer');
-  unitContainer.innerHTML = '';
-  if (Object.keys(unitTotals).length === 0) {
-    unitContainer.innerHTML = '<div style="font-size:12px;color:var(--muted)">Sin datos para mostrar gráficos</div>';
-  } else {
-    for (const [u, h] of Object.entries(unitTotals)) {
-      const pct = maxUnitHours > 0 ? Math.round((h / maxUnitHours) * 100) : 0;
-      unitContainer.innerHTML += `
-        <div class="chart-item">
-          <div class="chart-label"><span>${escHtml(u)}</span><span>${h}h</span></div>
-          <div class="chart-bar-bg"><div class="chart-bar-fill" style="width:${pct}%;"></div></div>
-        </div>`;
-    }
-  }
-
-  const reasonContainer = document.getElementById('reasonChartsContainer');
-  reasonContainer.innerHTML = '';
-  if (Object.keys(reasonTotals).length === 0) {
-    reasonContainer.innerHTML = '<div style="font-size:12px;color:var(--muted)">Sin datos para mostrar gráficos</div>';
-  } else {
-    for (const [r, h] of Object.entries(reasonTotals)) {
-      reasonContainer.innerHTML += `
-        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">
-          <span>${escHtml(r)}</span>
-          <span style="font-weight:bold;color:var(--primary)">+${h}h</span>
-        </div>`;
-    }
-  }
-
-  document.getElementById('chartsModal').classList.add('open');
-}
-
-function exportCSV() {
-  if (records.length === 0) { showToastMsg('No hay registros para exportar.', 'warning'); return; }
-
-  let csv = "\uFEFF"; // UTF-8 BOM
-  csv += "Trabajador (Sustituto);Día / Fecha;Unidad;A Quien Cubre;Horas Asignadas;Motivo / Nota;Fecha Registro\n";
-
-  records.forEach(r => {
-    csv += `"${r.worker.replace(/"/g, '""')}";"${r.date}";"${r.unit.replace(/"/g, '""')}";"${r.covering.replace(/"/g, '""')}";"${r.hours}";"${r.reason.replace(/"/g, '""')}";"${r.createdAt}"\n`;
-  });
-
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  const today = new Date().toISOString().slice(0,10);
-  a.download = `control_horas_extras_${today}.csv`;
-   a.click();
-}
-
-function shareWhatsApp() {
-  if (records.length === 0) { showToastMsg('No hay registros para compartir.', 'warning'); return; }
-
-  const now = new Date();
-  const currentMonth = now.getMonth() + 1;
-  const currentYear = now.getFullYear();
-
-  // Filter current month records
-  const monthRecords = records.filter(r => {
-    const parts = r.date.split('/');
-    return parts.length === 3 && parseInt(parts[1]) === currentMonth && parseInt(parts[2]) === currentYear;
-  });
-
-  const totalHours = monthRecords.reduce((sum, r) => sum + r.hours, 0);
-  const uniqueWorkers = new Set(monthRecords.map(r => r.worker)).size;
-  const coverages = monthRecords.filter(r => r.covering && !r.covering.includes('N/A')).length;
-
-  // Top 5 workers
-  const workerTotals = {};
-  monthRecords.forEach(r => { workerTotals[r.worker] = (workerTotals[r.worker] || 0) + r.hours; });
-  const topWorkers = Object.entries(workerTotals).sort((a, b) => b[1] - a[1]).slice(0, 5);
-
-  // Recent 5 records
-  const recent = monthRecords.slice(0, 5);
-
-  let msg = `⏱️ *Resumen Horas Extras — ${now.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}*\n\n`;
-  msg += `📊 *Total:* ${totalHours}h | ${uniqueWorkers} trabajadores | ${coverages} coberturas\n\n`;
-
-  if (topWorkers.length > 0) {
-    msg += `👑 *Top trabajadores:*\n`;
-    topWorkers.forEach(([w, h]) => { msg += `  • ${w.split(',')[0]}: +${h}h\n`; });
-    msg += `\n`;
-  }
-
-  if (recent.length > 0) {
-    msg += `📋 *Últimos registros:*\n`;
-    recent.forEach(r => { msg += `  • ${r.date} — ${r.worker.split(',')[0]} +${r.hours}h\n`; });
-  }
-
-  msg += `\n_Generado con Control de Horas Extras_`;
-
-  const encoded = encodeURIComponent(msg);
-  window.open(`https://wa.me/?text=${encoded}`, '_blank');
-}
-
-function exportJSON() {
-  if (records.length === 0) { showToastMsg('No hay registros para exportar.', 'warning'); return; }
-
-  const data = {
-    version: '1.0',
-    exportedAt: new Date().toISOString(),
-    count: records.length,
-    records: records
-  };
-
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `horas_extras_backup_${new Date().toISOString().slice(0,10)}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function importJSON() {
-  const input = document.getElementById('importJSONInput');
-  const file = input.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    try {
-      const data = JSON.parse(e.target.result);
-      if (!data.records || !Array.isArray(data.records)) {
-        showToastMsg('Formato de archivo inválido.', 'error');
-        return;
-      }
-
-      if (!confirm(`¿Importar ${data.records.length} registros? Esto reemplazará los datos actuales.`)) return;
-
-      records = data.records;
-      saveRecords();
-      render();
-      showToastMsg(`Importados ${data.records.length} registros correctamente.`, 'success');
-    } catch (err) {
-      showToastMsg('Error al leer el archivo. Asegúrate de que sea un JSON válido.', 'error');
-    }
-    input.value = '';
-  };
-  reader.readAsText(file);
-}
-
-function openEmailPDFModal() {
-  document.getElementById('emailPDFTo').value = '';
-  document.getElementById('emailPDFModal').classList.add('open');
-}
-
-async function generateAndSendPDF() {
-  if (records.length === 0) {
-    showToastMsg('No hay registros para generar el PDF.', 'warning');
-    closeModal('emailPDFModal');
-    return;
-  }
-
-  const to = document.getElementById('emailPDFTo').value.trim();
-  const subject = encodeURIComponent(document.getElementById('emailPDFSubject').value);
-
-  // Build clean HTML report container for PDF render
-  const pdfDiv = document.createElement('div');
-  pdfDiv.style.padding = '24px';
-  pdfDiv.style.color = '#0f172a';
-  pdfDiv.style.background = '#ffffff';
-  pdfDiv.style.fontFamily = 'sans-serif';
-  
-  let html = `<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #0284c7;padding-bottom:10px;margin-bottom:16px;">`;
-  html += `<div><h1 style="color:#0284c7;font-size:22px;margin:0">Informe Oficial de Horas Extras y Coberturas</h1><p style="font-size:11px;color:#64748b;margin-top:2px">Fecha de emisión: ${new Date().toLocaleString('es-ES')}</p></div>`;
-  html += `<div style="font-size:24px;font-weight:bold;color:#0284c7">⏱️ CONTROL</div>`;
-  html += `</div>`;
-  
-  html += `<div style="display:flex;gap:12px;margin-bottom:16px;">`;
-  html += `<div style="background:#f1f5f9;padding:12px;border-radius:8px;flex:1"><span style="font-size:11px;color:#64748b">TOTAL HORAS EXTRAS</span><br><b style="font-size:18px;color:#0284c7">${document.getElementById('statTotal').innerText}</b></div>`;
-  html += `<div style="background:#f1f5f9;padding:12px;border-radius:8px;flex:1"><span style="font-size:11px;color:#64748b">TRABAJADORES ACTIVOS</span><br><b style="font-size:18px">${document.getElementById('statWorkers').innerText}</b></div>`;
-  html += `<div style="background:#f1f5f9;padding:12px;border-radius:8px;flex:1"><span style="font-size:11px;color:#64748b">TOTAL COBERTURAS</span><br><b style="font-size:18px">${document.getElementById('statCoverages').innerText}</b></div>`;
-  html += `</div>`;
-
-  html += `<table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:10px" border="1" borderColor="#cbd5e1" cellpadding="6">`;
-  html += `<thead style="background:#0284c7;color:#ffffff"><tr><th style="padding:8px">Trabajador (Sustituto)</th><th style="padding:8px">Fecha</th><th style="padding:8px">Unidad</th><th style="padding:8px">A Quien Cubre</th><th style="padding:8px">Horas</th><th style="padding:8px">Motivo / Nota</th></tr></thead><tbody>`;
-  
-  records.forEach(r => {
-    html += `<tr><td style="padding:6px;font-weight:bold">${escHtml(r.worker)}</td><td style="padding:6px">${escHtml(r.date)}</td><td style="padding:6px">${escHtml(r.unit.split(' - ')[0])}</td><td style="padding:6px">${escHtml(r.covering)}</td><td style="padding:6px;font-weight:bold;color:#0284c7">+${r.hours}h</td><td style="padding:6px">${escHtml(r.reason)}</td></tr>`;
-  });
-  html += `</tbody></table>`;
-  
-  pdfDiv.innerHTML = html;
-
-  const opt = {
-    margin:       8,
-    filename:     `Informe_Horas_Extras_${new Date().toISOString().slice(0,10)}.pdf`,
-    image:        { type: 'jpeg', quality: 0.98 },
-    html2canvas:  { scale: 2 },
-    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
-  };
-
-  closeModal('emailPDFModal');
-
-  // Dynamic load html2pdf
-  if (!window.html2pdf) {
-    const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
-    s.onload = function() { generatePDF(opt, pdfDiv, to, subject); };
-    document.head.appendChild(s);
-  } else {
-    generatePDF(opt, pdfDiv, to, subject);
-  }
-}
-
-async function generatePDF(opt, pdfDiv, to, subject) {
-  const pdfWorker = html2pdf().set(opt).from(pdfDiv);
-
-  if (navigator.canShare) {
-    try {
-      const pdfBlob = await pdfWorker.output('blob');
-      const file = new File([pdfBlob], opt.filename, { type: 'application/pdf' });
-      if (navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: 'Informe de Horas Extras y Coberturas PDF',
-          text: `Adjunto informe oficial de horas extras (${document.getElementById('statTotal').innerText}).`
-        });
-        return;
-      }
-    } catch (err) {
-      console.log("Web share skipped", err);
-    }
-  }
-
-  pdfWorker.save();
-  const mailtoBody = encodeURIComponent(`Hola,\n\nTe adjunto el informe oficial en PDF "${opt.filename}" recién descargado en el dispositivo.\n\nResumen:\n- Total Horas Extras: ${document.getElementById('statTotal').innerText}\n- Trabajadores Activos: ${document.getElementById('statWorkers').innerText}\n\nUn saludo.`);
-  const mailtoUrl = `mailto:${to}?subject=${subject}&body=${mailtoBody}`;
-  setTimeout(() => { window.location.href = mailtoUrl; }, 600);
-}
-
-function printReport() {
-  window.print();
-}
-
-function toggleTheme() {
-  document.body.classList.toggle('light-mode');
-  const btn = document.getElementById('themeBtn');
-  btn.innerText = document.body.classList.contains('light-mode') ? '🌙' : '☀️';
-}
-
-function closeModal(id) {
-  document.getElementById(id).classList.remove('open');
-}
-
-function escHtml(s) { const d = document.createElement('div'); d.textContent = s||''; return d.innerHTML; }
-
-let deferredPrompt;
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  const btn = document.getElementById('installBtn');
-  if (btn) btn.style.display = 'inline-flex';
-});
-
-function installPWA() {
-  if (deferredPrompt) {
-    deferredPrompt.prompt();
-    deferredPrompt.userChoice.then((choiceResult) => {
-      if (choiceResult.outcome === 'accepted') {
-        const btn = document.getElementById('installBtn');
-        if (btn) btn.style.display = 'none';
-      }
-      deferredPrompt = null;
-    });
-  }
-}
-
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js')
-      .then(reg => {
-        console.log('Service Worker registrado:', reg.scope);
-
-        // Check for updates
-        reg.addEventListener('updatefound', () => {
-          const newWorker = reg.installing;
-          newWorker.addEventListener('statechange', () => {
-            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              showToast('Nueva versión disponible. ¡Actualiza para ver los cambios!', () => {
-                newWorker.postMessage({ action: 'SKIP_WAITING' });
-                location.reload();
-              });
-            }
-          });
-        });
-      })
-      .catch(err => console.log('SW registration error:', err));
-
-    // Auto-refresh when SW tells us to
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      location.reload();
-    });
-  });
-}
-
-function showToast(message, actionText, actionFn) {
-  let toast = document.getElementById('toast');
-  if (!toast) {
-    toast = document.createElement('div');
-    toast.id = 'toast';
-    document.body.appendChild(toast);
-  }
-  toast.innerHTML = `<span>${message}</span><button onclick="this.parentElement.classList.remove('show')">✕</button>`;
-  if (actionText && actionFn) {
-    const btn = document.createElement('button');
-    btn.textContent = actionText;
-    btn.onclick = () => { actionFn(); toast.classList.remove('show'); };
-    toast.innerHTML = `<span>${message}</span>`;
-    toast.appendChild(btn);
-  }
-  toast.classList.add('show');
-  setTimeout(() => toast.classList.remove('show'), 10000);
-}
-
-// ========================
-// #7 Gestionar Trabajadores
-// ========================
-
-function openWorkersModal() {
-  const uSel = document.getElementById('manageUnitSelect');
-  uSel.innerHTML = '';
-  getUnits().forEach((u, i) => {
-    const opt = document.createElement('option');
-    opt.value = i;
-    opt.textContent = u.unit.split(' - ')[0];
-    uSel.appendChild(opt);
-  });
-  renderWorkersList();
-  document.getElementById('workersModal').classList.add('open');
-}
-
-function renderWorkersList() {
-  const unitIdx = parseInt(document.getElementById('manageUnitSelect').value);
-  const units = getUnits();
-  const editInput = document.getElementById('editUnitName');
-  if (units[unitIdx]) editInput.value = units[unitIdx].unit;
-  const container = document.getElementById('workersList');
-  container.innerHTML = '';
-  if (!units[unitIdx]) return;
-  units[unitIdx].workers.forEach((w, wIdx) => {
-    container.innerHTML += `
-      <div class="worker-item">
-        <span style="font-size:13px;">${escHtml(w)}</span>
-        <button class="btn btn-sm btn-danger" onclick="removeWorker(${unitIdx},${wIdx});renderWorkersList();">✕</button>
-      </div>`;
-  });
-  if (units[unitIdx].workers.length === 0) {
-    container.innerHTML = '<div style="padding:16px;color:var(--muted);text-align:center;">Sin trabajadores</div>';
-  }
-}
-
-function editUnit() {
-  const unitIdx = parseInt(document.getElementById('manageUnitSelect').value);
-  const newName = document.getElementById('editUnitName').value.trim().toUpperCase();
-  if (!newName) { showToastMsg('Introduce un nombre para la unidad.', 'warning'); return; }
-  const units = getUnits();
-  if (!units[unitIdx]) return;
-  if (units.some((u, i) => i !== unitIdx && u.unit === newName)) {
-    showToastMsg('Ya existe otra unidad con ese nombre.', 'warning');
-    return;
-  }
-  const oldName = units[unitIdx].unit;
-  units[unitIdx].unit = newName;
-  saveUnits(units);
-  // Also update records that reference this unit
-  records.forEach(r => { if (r.unit === oldName) r.unit = newName; });
-  saveRecords();
-  openWorkersModal();
-  render();
-}
-
-function addNewWorker() {
-  const unitIdx = parseInt(document.getElementById('manageUnitSelect').value);
-  const name = document.getElementById('newWorkerName').value;
-  if (!name.trim()) { showToastMsg('Introduce un nombre.', 'warning'); return; }
-  addWorker(unitIdx, name);
-  document.getElementById('newWorkerName').value = '';
-  renderWorkersList();
-}
-
-function addPresetUnit(name) {
-  if (addUnit(name)) {
-    openWorkersModal();
-  }
-}
-
-function addCustomUnit() {
-  const name = document.getElementById('newUnitName').value;
-  if (!name.trim()) { showToastMsg('Introduce un nombre para la unidad.', 'warning'); return; }
-  if (addUnit(name)) {
-    document.getElementById('newUnitName').value = '';
-    openWorkersModal();
-  }
-}
-
-function deleteUnit() {
-  const unitIdx = parseInt(document.getElementById('manageUnitSelect').value);
-  removeUnit(unitIdx);
-  openWorkersModal();
-}
-
-// ========================
-// #16 Exportar Excel (.xlsx)
-// ========================
-
-function exportExcel() {
-  if (records.length === 0) { showToastMsg('No hay registros para exportar.', 'warning'); return; }
-  if (typeof XLSX === 'undefined') { showToastMsg('Librería Excel no cargada. Revisa tu conexión.', 'error'); return; }
-
-  const wb = XLSX.utils.book_new();
-
-  // Sheet 1: Registros
-  const rows1 = records.map(r => ({
-    'Trabajador': r.worker,
-    'Fecha': r.date,
-    'Unidad': r.unit,
-    'Cubre a': r.covering,
-    'Horas': r.hours,
-    'Motivo': r.reason,
-    'Registrado': r.createdAt
-  }));
-  const ws1 = XLSX.utils.json_to_sheet(rows1);
-  ws1['!cols'] = [{wch:35},{wch:14},{wch:40},{wch:30},{wch:8},{wch:25},{wch:20}];
-  XLSX.utils.book_append_sheet(wb, ws1, 'Registros');
-
-  // Sheet 2: Resumen por Trabajador
-  const workerData = {};
-  records.forEach(r => {
-    if (!workerData[r.worker]) workerData[r.worker] = { worker: r.worker, unit: r.unit, hours: 0, days: new Set() };
-    workerData[r.worker].hours += r.hours;
-    workerData[r.worker].days.add(r.date);
-  });
-  const rows2 = Object.values(workerData).map(d => ({
-    'Trabajador': d.worker,
-    'Unidad': d.unit.split(' - ')[0],
-    'Total Horas': d.hours,
-    'Días Trabajados': d.days.size,
-    'Promedio Horas/Día': (d.hours / d.days.size).toFixed(1)
-  }));
-  const ws2 = XLSX.utils.json_to_sheet(rows2);
-  ws2['!cols'] = [{wch:35},{wch:40},{wch:12},{wch:15},{wch:18}];
-  XLSX.utils.book_append_sheet(wb, ws2, 'Resumen Trabajador');
-
-  // Sheet 3: Resumen por Unidad
-  const unitData = {};
-  records.forEach(r => {
-    const uKey = r.unit;
-    if (!unitData[uKey]) unitData[uKey] = { unit: uKey, hours: 0, workers: new Set() };
-    unitData[uKey].hours += r.hours;
-    unitData[uKey].workers.add(r.worker);
-  });
-  const rows3 = Object.values(unitData).map(d => ({
-    'Unidad': d.unit,
-    'Total Horas': d.hours,
-    'Trabajadores Activos': d.workers.size
-  }));
-  const ws3 = XLSX.utils.json_to_sheet(rows3);
-  ws3['!cols'] = [{wch:45},{wch:12},{wch:18}];
-  XLSX.utils.book_append_sheet(wb, ws3, 'Resumen Unidad');
-
-  const today = new Date().toISOString().slice(0,10);
-  XLSX.writeFile(wb, `control_horas_extras_${today}.xlsx`);
-}
-
-// ========================
-// #20 Resumen por Trabajador
-// ========================
-
-function openWorkerSummaryModal() {
-  const mSel = document.getElementById('summaryMonthFilter');
-  mSel.innerHTML = '<option value="all">Todos</option>';
-  const now = new Date();
-  const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  for (let i = 0; i < 6; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const monthNum = d.getMonth() + 1;
-    const year = d.getFullYear();
-    const opt = document.createElement('option');
-    opt.value = `month_${year}_${monthNum}`;
-    opt.textContent = `${months[d.getMonth()]} ${year}`;
-    mSel.appendChild(opt);
-  }
-  renderWorkerSummary();
-  document.getElementById('workerSummaryModal').classList.add('open');
-}
-
-function renderWorkerSummary() {
-  const filter = document.getElementById('summaryMonthFilter').value;
-  let filtered = records;
-  if (filter.startsWith('month_')) {
-    const [, , year, month] = filter.split('_');
-    const monthNum = parseInt(month);
-    filtered = filtered.filter(r => {
-      const parts = r.date.split('/');
-      return parts.length === 3 && parseInt(parts[1]) === monthNum && parseInt(parts[2]) === parseInt(year);
-    });
-  }
-  const workerData = {};
-  filtered.forEach(r => {
-    if (!workerData[r.worker]) workerData[r.worker] = { worker: r.worker, unit: r.unit, hours: 0, days: new Set() };
-    workerData[r.worker].hours += r.hours;
-    workerData[r.worker].days.add(r.date);
-  });
-  const sorted = Object.values(workerData).sort((a, b) => b.hours - a.hours);
-  const tbody = document.getElementById('workerSummaryTbody');
-  tbody.innerHTML = '';
-  sorted.forEach(d => {
-    tbody.innerHTML += `
-      <tr style="border-bottom:1px solid var(--border);">
-        <td style="padding:8px;font-weight:600;">${escHtml(d.worker)}</td>
-        <td style="padding:8px;font-size:11px;color:var(--muted);">${escHtml(d.unit.split(' - ')[0])}</td>
-        <td style="padding:8px;text-align:center;"><span class="badge badge-hours">+${d.hours}h</span></td>
-        <td style="padding:8px;text-align:center;">${d.days.size}</td>
-        <td style="padding:8px;text-align:center;">${(d.hours / d.days.size).toFixed(1)}h</td>
-      </tr>`;
-  });
-  if (sorted.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" style="padding:16px;text-align:center;color:var(--muted);">Sin datos para este período</td></tr>';
-  }
-}
-
-function exportWorkerSummaryExcel() {
-  if (typeof XLSX === 'undefined') { showToastMsg('Librería Excel no cargada.', 'error'); return; }
-  const filter = document.getElementById('summaryMonthFilter').value;
-  let filtered = records;
-  if (filter.startsWith('month_')) {
-    const [, , year, month] = filter.split('_');
-    const monthNum = parseInt(month);
-    filtered = filtered.filter(r => {
-      const parts = r.date.split('/');
-      return parts.length === 3 && parseInt(parts[1]) === monthNum && parseInt(parts[2]) === parseInt(year);
-    });
-  }
-  const workerData = {};
-  filtered.forEach(r => {
-    if (!workerData[r.worker]) workerData[r.worker] = { worker: r.worker, unit: r.unit, hours: 0, days: new Set() };
-    workerData[r.worker].hours += r.hours;
-    workerData[r.worker].days.add(r.date);
-  });
-  const rows = Object.values(workerData).sort((a, b) => b.hours - a.hours).map(d => ({
-    'Trabajador': d.worker,
-    'Unidad': d.unit.split(' - ')[0],
-    'Total Horas': d.hours,
-    'Días Trabajados': d.days.size,
-    'Promedio Horas/Día': (d.hours / d.days.size).toFixed(1)
-  }));
-  const ws = XLSX.utils.json_to_sheet(rows);
-  ws['!cols'] = [{wch:35},{wch:40},{wch:12},{wch:15},{wch:18}];
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Resumen Trabajador');
-  XLSX.writeFile(wb, `resumen_trabajador_${new Date().toISOString().slice(0,10)}.xlsx`);
-}
-
-// ========================
-// #12 Vista Calendario
-// ========================
-
-let calendarYear, calendarMonth;
-
-function openCalendarModal() {
-  const now = new Date();
-  calendarYear = now.getFullYear();
-  calendarMonth = now.getMonth();
-  renderCalendar();
-  document.getElementById('calendarModal').classList.add('open');
-}
-
-function renderCalendar() {
-  const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  const days = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
-  const container = document.getElementById('calendarContainer');
-  
-  // Build record map by date
-  const recordMap = {};
-  records.forEach(r => {
-    const parts = r.date.split('/');
-    if (parts.length === 3) {
-      const key = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
-      recordMap[key] = (recordMap[key] || 0) + 1;
-    }
-  });
-
-  const today = new Date();
-  const todayKey = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-
-  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">`;
-  html += `<button class="btn btn-sm" onclick="changeCalMonth(-1)">◀</button>`;
-  html += `<b style="font-size:16px;">${months[calendarMonth]} ${calendarYear}</b>`;
-  html += `<button class="btn btn-sm" onclick="changeCalMonth(1)">▶</button>`;
-  html += `</div>`;
-  html += `<div class="calendar-grid">`;
-  days.forEach(d => { html += `<div class="calendar-day-header">${d}</div>`; });
-
-  const firstDay = new Date(calendarYear, calendarMonth, 1);
-  let startDay = firstDay.getDay() - 1;
-  if (startDay < 0) startDay = 6;
-  const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
-
-  for (let i = 0; i < startDay; i++) html += `<div></div>`;
-  for (let d = 1; d <= daysInMonth; d++) {
-    const key = `${calendarYear}-${String(calendarMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const count = recordMap[key] || 0;
-    const isToday = key === todayKey;
-    const classes = ['calendar-day'];
-    if (isToday) classes.push('today');
-    if (count > 0) classes.push('has-records');
-    html += `<div class="${classes.join(' ')}" onclick="showCalDayDetail(${calendarYear},${calendarMonth},${d})">
-      <div style="font-weight:600;">${d}</div>
-      ${count > 0 ? `<div style="font-size:10px;color:var(--primary);">${count} registro${count > 1 ? 's' : ''}</div>` : ''}
-    </div>`;
-  }
-  html += `</div>`;
-  html += `<div id="calDayDetail" style="margin-top:12px;"></div>`;
-  container.innerHTML = html;
-}
-
-function changeCalMonth(delta) {
-  calendarMonth += delta;
-  if (calendarMonth > 11) { calendarMonth = 0; calendarYear++; }
-  if (calendarMonth < 0) { calendarMonth = 11; calendarYear--; }
-  renderCalendar();
-}
-
-function showCalDayDetail(year, month, day) {
-  const dateStr = `${String(day).padStart(2,'0')}/${String(month+1).padStart(2,'0')}/${year}`;
-  const dayRecords = records.filter(r => r.date === dateStr);
-  const detail = document.getElementById('calDayDetail');
-  if (dayRecords.length === 0) {
-    detail.innerHTML = `<div style="padding:12px;text-align:center;color:var(--muted);font-size:13px;">Sin registros el ${dateStr}</div>`;
-    return;
-  }
-  let html = `<div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;"><div style="padding:8px 12px;background:var(--primary-glow);font-weight:600;font-size:13px;">📅 ${dateStr} — ${dayRecords.length} registro${dayRecords.length > 1 ? 's' : ''}</div>`;
-  dayRecords.forEach(r => {
-    html += `<div style="padding:8px 12px;border-top:1px solid var(--border);font-size:12px;">
-      <b>${escHtml(r.worker)}</b> <span class="badge badge-hours">+${r.hours}h</span><br>
-      <span style="color:var(--muted);">${escHtml(r.unit.split(' - ')[0])}</span>
-    </div>`;
-  });
-  html += `</div>`;
-  detail.innerHTML = html;
-}
-
-// ========================
-// #24 Backup Automático
-// ========================
-
-let backupInterval = null;
-
-function initAutoBackup() {
-  // Run backup immediately
-  createBackup();
-  // Then every 5 minutes
-  backupInterval = setInterval(createBackup, 5 * 60 * 1000);
-  updateBackupStatus();
-}
-
-function createBackup() {
-  const data = { records: records, units: getUnits(), savedAt: new Date().toISOString() };
-  localStorage.setItem(BACKUP_KEY, JSON.stringify(data));
-  updateBackupStatus();
-}
-
-function restoreBackup() {
-  const raw = localStorage.getItem(BACKUP_KEY);
-  if (!raw) { showToastMsg('No hay backup disponible.', 'warning'); return; }
-  try {
-    const data = JSON.parse(raw);
-    const count = data.records ? data.records.length : 0;
-    if (!confirm(`Restaurar backup del ${new Date(data.savedAt).toLocaleString('es-ES')} con ${count} registros? Esto reemplazará los datos actuales.`)) return;
-    if (data.records) { records = data.records; saveRecords(); }
-    if (data.units) saveUnits(data.units);
-    render();
-    showToastMsg('Backup restaurado correctamente.', 'success');
-  } catch(e) { showToastMsg('Error al restaurar el backup.', 'error'); }
-}
-
-function updateBackupStatus() {
-  const el = document.getElementById('backupStatus');
-  if (!el) return;
-  const raw = localStorage.getItem(BACKUP_KEY);
-  if (!raw) { el.innerHTML = ''; return; }
-  try {
-    const data = JSON.parse(raw);
-    const savedAt = new Date(data.savedAt);
-    const diffMin = Math.round((Date.now() - savedAt.getTime()) / 60000);
-    el.innerHTML = `💾 Backup: hace ${diffMin}min`;
-    el.className = 'backup-status ' + (diffMin < 10 ? 'backup-ok' : 'backup-warn');
-  } catch(e) { el.innerHTML = ''; }
-}
-
-// ========================
-// Dropdown menus
-// ========================
-
-function toggleDropdown(id) {
-  const menu = document.getElementById(id);
-  const isOpen = menu.classList.contains('show');
-  closeAllDropdowns();
-  if (!isOpen) menu.classList.add('show');
-}
-
-function closeAllDropdowns() {
-  document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
-}
-
-// Close dropdowns on outside click
-document.addEventListener('click', (e) => {
-  if (!e.target.closest('.dropdown')) closeAllDropdowns();
-});
-
-// ========================
-// Toast notifications
-// ========================
-
-function showToastMsg(msg, type = 'info') {
-  let toast = document.getElementById('toast');
-  if (!toast) {
-    toast = document.createElement('div');
-    toast.id = 'toast';
-    document.body.appendChild(toast);
-  }
-  const icons = { info: 'ℹ️', success: '✅', warning: '⚠️', error: '❌' };
-  toast.innerHTML = `<span>${icons[type] || 'ℹ️'} ${msg}</span><button onclick="this.parentElement.classList.remove('show')">✕</button>`;
-  toast.classList.add('show');
-  setTimeout(() => toast.classList.remove('show'), 4000);
-}
-
-// ========================
-// Keyboard shortcuts
-// ========================
-
-document.addEventListener('keydown', (e) => {
-  if (e.ctrlKey && e.key === 'n') {
-    e.preventDefault();
-    openRecordModal();
-  }
-  if (e.key === 'Escape') {
-    document.querySelectorAll('.modal.open').forEach(m => m.classList.remove('open'));
-    closeAllDropdowns();
-  }
-});
-
-// ========================
-// Theme persistence
-// ========================
-
-const THEME_KEY = 'horas_extras_theme';
-
-function toggleTheme() {
-  document.body.classList.toggle('light-mode');
-  const isLight = document.body.classList.contains('light-mode');
-  localStorage.setItem(THEME_KEY, isLight ? 'light' : 'dark');
-  document.getElementById('themeBtn').innerText = isLight ? '☀️' : '🌙';
-}
-
-function loadTheme() {
-  const saved = localStorage.getItem(THEME_KEY);
-  if (saved === 'light') {
-    document.body.classList.add('light-mode');
-    document.getElementById('themeBtn').innerText = '☀️';
-  }
-}
-
-// ========================
-// Stats with mini bars
-// ========================
-
-function updateStatsBars(totalHours, uniqueWorkers, coverCount) {
-  const maxHours = 200; // max expected for scale
-  const maxWorkers = 50;
-  const maxCovers = 30;
-  
-  const bars = document.querySelectorAll('.stat-box .bar-fill');
-  if (bars[0]) bars[0].style.width = Math.min(100, (totalHours / maxHours) * 100) + '%';
-  if (bars[1]) bars[1].style.width = Math.min(100, (uniqueWorkers / maxWorkers) * 100) + '%';
-  if (bars[3]) bars[3].style.width = Math.min(100, (coverCount / maxCovers) * 100) + '%';
-}
-
-initDatalists();
-initMonthFilter();
-initUnitFilter();
-render();
-loadTheme();
-initAutoBackup();
-</script>
+<!-- Modal: Enviar PDF al Correo -->
+<div class="modal" id="emailPDFModal" role="dialog" aria-modal="true" aria-labelledby="emailTitle" aria-hidden="true">
+  <div class="modal-box">
+    <h2 id="emailTitle">✉️ Enviar PDF al Correo</h2>
+    <div class="form-group">
+      <label for="emailPDFTo">Correo Electrónico Destinatario</label>
+      <input type="email" id="emailPDFTo" placeholder="rrhh@empresa.com o tu_correo@gmail.com">
+    </div>
+    <div class="form-group">
+      <label for="emailPDFSubject">Asunto del Correo</label>
+      <input type="text" id="emailPDFSubject" value="Informe Oficial de Horas Extras y Coberturas">
+    </div>
+    <div style="background:var(--bg);border:1px solid var(--border);padding:12px;border-radius:8px;font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.5;">
+      📄 <strong>Generación Oficial del Documento PDF:</strong><br>
+      Al hacer clic se compilará el informe oficial en PDF. En dispositivos móviles se abrirá el menú nativo para compartir. En ordenador se descargará el PDF.
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;">
+      <button class="btn" onclick="closeModal('emailPDFModal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="generateAndSendPDF()">📄 Generar PDF y Compartir</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js" defer></script>
 </body>
 </html>
