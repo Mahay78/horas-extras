@@ -148,7 +148,7 @@ function computeTotals(list) {
 // ========================
 // Toast notifications
 // ========================
-function showToastMsg(msg, type = 'info') {
+function showToastMsg(msg, type = 'info', opts = {}) {
   let toast = document.getElementById('toast');
   if (!toast) {
     toast = document.createElement('div');
@@ -158,29 +158,99 @@ function showToastMsg(msg, type = 'info') {
     document.body.appendChild(toast);
   }
   const icons = { info: 'ℹ️', success: '✅', warning: '⚠️', error: '❌' };
-  toast.innerHTML = `<span>${icons[type] || 'ℹ️'} ${escHtml(msg)}</span><button class="toast-close" aria-label="Cerrar">✕</button>`;
+  const action = opts.action ? `<button data-toast-action aria-label="${escHtml(opts.actionLabel || 'Acción')}">${escHtml(opts.actionLabel || 'Acción')}</button>` : '';
+  toast.innerHTML = `<span>${icons[type] || 'ℹ️'} ${escHtml(msg)}</span>${action}<button class="toast-close" aria-label="Cerrar">✕</button>`;
   toast.classList.add('show');
-  setTimeout(() => toast.classList.remove('show'), 4000);
-}
-
-// ========================
-// Theme
-// ========================
-function toggleTheme() {
-  document.body.classList.toggle('light-mode');
-  const isLight = document.body.classList.contains('light-mode');
-  localStorage.setItem(THEME_KEY, isLight ? 'light' : 'dark');
-  const btn = document.getElementById('themeBtn');
-  if (btn) btn.innerText = isLight ? '☀️' : '🌙';
-}
-
-function loadTheme() {
-  const saved = localStorage.getItem(THEME_KEY);
-  if (saved === 'light') {
-    document.body.classList.add('light-mode');
-    const btn = document.getElementById('themeBtn');
-    if (btn) btn.innerText = '☀️';
+  if (opts.action && typeof opts.onAction === 'function') {
+    toast.querySelector('[data-toast-action]').addEventListener('click', () => {
+      try { opts.onAction(); } finally {
+        toast.classList.remove('show');
+        if (navigator.vibrate) navigator.vibrate(15);
+      }
+    });
   }
+  const ttl = opts.duration || 4000;
+  setTimeout(() => toast.classList.remove('show'), ttl);
+}
+
+function haptic(pattern = 15) {
+  if (navigator.vibrate) {
+    try { navigator.vibrate(pattern); } catch (e) {}
+  }
+}
+
+// ========================
+// Theme + Preferences
+// ========================
+const PREF_KEY = 'horas_extras_prefs_v1';
+const FAB_POS_KEY = 'horas_extras_fab_pos';
+const FS_KEY = 'horas_extras_font_size';
+const deferredToasts = [];
+function toastOpts() { return { ...deferredToasts.pop() }; }
+
+function loadPrefs() {
+  try { return JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); }
+  catch (e) { return {}; }
+}
+function savePrefs(p) { localStorage.setItem(PREF_KEY, JSON.stringify(p || {})); }
+
+function getThemePref() {
+  const p = loadPrefs();
+  return p.theme || localStorage.getItem(THEME_KEY) || 'auto';
+}
+function setThemePref(value) {
+  const p = loadPrefs(); p.theme = value; savePrefs(p);
+  applyTheme();
+}
+function applyTheme() {
+  const pref = getThemePref();
+  let effective;
+  if (pref === 'auto') {
+    effective = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  } else {
+    effective = pref;
+  }
+  document.body.classList.toggle('light-mode', effective === 'light');
+  const btn = document.getElementById('themeBtn');
+  if (btn) {
+    btn.innerText = pref === 'auto' ? '🌓' : (effective === 'light' ? '☀️' : '🌙');
+    btn.title = `Tema: ${pref}`;
+  }
+}
+function toggleTheme() {
+  const cur = getThemePref();
+  // Cycle: dark → light → auto → dark
+  const next = cur === 'dark' ? 'light' : cur === 'light' ? 'auto' : 'dark';
+  setThemePref(next);
+  showToastMsg(`Tema: ${next}`, 'info');
+}
+function loadTheme() { applyTheme(); }
+
+if (window.matchMedia) {
+  window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
+    if (getThemePref() === 'auto') applyTheme();
+  });
+}
+
+function applyFabPosition() {
+  const v = localStorage.getItem(FAB_POS_KEY) || 'right';
+  document.documentElement.dataset.fab = v;
+}
+function setFabPosition(v) {
+  localStorage.setItem(FAB_POS_KEY, v);
+  applyFabPosition();
+  showToastMsg('Posición FAB: ' + (v === 'right' ? 'derecha' : v === 'left' ? 'izquierda' : 'centro'), 'success');
+}
+
+function applyFontSize() {
+  const v = localStorage.getItem(FS_KEY) || 'md';
+  document.documentElement.dataset.fs = v === 'md' ? '' : v;
+  document.documentElement.removeAttribute('data-fs');
+  if (v !== 'md') document.documentElement.setAttribute('data-fs', v);
+}
+function setFontSize(v) {
+  localStorage.setItem(FS_KEY, v);
+  applyFontSize();
 }
 
 // ========================
@@ -462,23 +532,60 @@ function saveRecord() {
   showToastMsg(editId ? 'Registro actualizado.' : 'Registro creado.', 'success');
 }
 
-function deleteRecord(id) {
-  if (!window.confirm('¿Eliminar este registro de horas extras?')) return;
-  records = records.filter(r => r.id !== id);
+function deleteRecord(id, opts = {}) {
+  if (!opts.skipConfirm && !window.confirm('¿Eliminar este registro de horas extras?')) return;
+  const idx = records.findIndex(r => r.id === id);
+  if (idx === -1) return;
+  const removed = records[idx];
+  records.splice(idx, 1);
   saveRecords();
   markEdited();
   render();
-  showToastMsg('Registro eliminado.', 'success');
+  haptic(20);
+  if (opts.silent) {
+    showToastMsg('Registro eliminado.', 'success');
+    return;
+  }
+  showToastMsg('Registro eliminado.', 'success', {
+    duration: 5000,
+    actionLabel: 'Deshacer',
+    onAction: () => {
+      records.splice(idx, 0, removed);
+      saveRecords();
+      markEdited();
+      render();
+      haptic(15);
+      showToastMsg('Registro restaurado.', 'info');
+    }
+  });
 }
 
 function clearAllRecords() {
   if (records.length === 0) return;
   if (!window.confirm('¿Seguro que deseas vaciar toda la lista?')) return;
+  const typed = window.prompt('Escribe VACIAR para confirmar (se puede Deshacer)');
+  if ((typed || '').trim().toUpperCase() !== 'VACIAR') {
+    showToastMsg('Cancelado.', 'info');
+    return;
+  }
+  const backup = records.slice();
   records = [];
   saveRecords();
   markEdited();
   render();
-  showToastMsg('Lista vaciada.', 'success');
+  haptic([20, 30, 20]);
+  showToastMsg('Lista vaciada.', 'warning', {
+    duration: 7000,
+    actionLabel: 'Deshacer',
+    onAction: () => {
+      records = backup;
+      saveRecords();
+      markEdited();
+      render();
+      haptic(15);
+      showToastMsg('Lista restaurada.', 'info');
+    }
+  });
 }
 
 // ========================
@@ -566,18 +673,28 @@ function render() {
     pageRecords.forEach(r => {
       const tr = document.createElement('tr');
       const hrs = parseFloat(r.hours) || 0;
+      const hrsLabel = hrs > 0 ? `+${hrs}h` : '—';
       const isCovering = r.covering && !r.covering.includes('N/A');
+      const coveringLabel = isCovering ? `🔄 ${escHtml(r.covering)}` : '⚡ Extra Directa';
+      const unitShort = escHtml((r.unit || '').split(' - ')[0]);
       tr.dataset.recordId = r.id;
+      tr.dataset.longPress = 'record';
       tr.innerHTML = `
-        <td style="font-weight:700;">${escHtml(r.worker)}</td>
-        <td>📅 ${escHtml(r.date)}</td>
-        <td><span style="font-size:12px;color:var(--muted)">${escHtml((r.unit || '').split(' - ')[0])}</span></td>
-        <td>${isCovering ? `<span class="badge badge-covered">🔄 ${escHtml(r.covering)}</span>` : `<span class="badge badge-direct">⚡ Extra Directa</span>`}</td>
-        <td><span class="badge badge-hours">+${hrs}h</span></td>
-        <td>${escHtml(r.reason)}</td>
-        <td style="text-align:right">
-          <button class="btn btn-sm" data-action="edit-record" data-record-id="${r.id}" aria-label="Editar registro">✏️</button>
-          <button class="btn btn-sm btn-danger" data-action="delete-record" data-record-id="${r.id}" aria-label="Borrar registro">✕</button>
+        <td class="td-worker">${escHtml(r.worker)}</td>
+        <td class="td-headline">
+          <span class="badge badge-hours">${hrsLabel}</span>
+          <span class="badge ${isCovering ? 'badge-covered' : 'badge-direct'}">${coveringLabel}</span>
+        </td>
+        <td class="td-meta">
+          <span>📅 ${escHtml(r.date)}</span>
+          <span>· ${unitShort}</span>
+        </td>
+        <td class="td-reason" style="color:var(--muted);font-size:12px;padding:4px 0;">
+          ${escHtml((r.reason || '').slice(0, 120))}${(r.reason || '').length > 120 ? '…' : ''}
+        </td>
+        <td class="td-actions">
+          <button class="btn btn-sm" data-action="edit-record" data-record-id="${r.id}" aria-label="Editar registro">✏️ Editar</button>
+          <button class="btn btn-sm btn-danger" data-action="delete-record" data-record-id="${r.id}" aria-label="Borrar registro">🗑 Borrar</button>
         </td>`;
       tbody.appendChild(tr);
     });
@@ -933,16 +1050,21 @@ function renderWorkersList() {
   const container = document.getElementById('workersList');
   container.innerHTML = '';
   if (!units[unitIdx]) return;
-  units[unitIdx].workers.forEach((w, wIdx) => {
+  const filterText = ((document.getElementById('workerFilterInput') || {}).value || '').toLowerCase().trim();
+  const visiblePairs = units[unitIdx].workers
+    .map((w, wIdx) => ({ w, wIdx }))
+    .filter(p => !filterText || p.w.toLowerCase().includes(filterText));
+  if (visiblePairs.length === 0) {
+    container.innerHTML = '<div style="padding:16px;color:var(--muted);text-align:center;">Sin coincidencias</div>';
+    return;
+  }
+  visiblePairs.forEach(({ w, wIdx }) => {
     container.innerHTML += `
       <div class="worker-item">
         <span style="font-size:13px;">${escHtml(w)}</span>
-        <button class="btn btn-sm btn-danger" data-action="remove-worker" data-unit-idx="${unitIdx}" data-worker-idx="${wIdx}" aria-label="Eliminar trabajador">✕</button>
+        <button class="btn btn-sm btn-danger" data-action="remove-worker" data-unit-idx="${unitIdx}" data-worker-idx="${wIdx}" aria-label="Eliminar trabajador ${escHtml(w)}">✕</button>
       </div>`;
   });
-  if (units[unitIdx].workers.length === 0) {
-    container.innerHTML = '<div style="padding:16px;color:var(--muted);text-align:center;">Sin trabajadores</div>';
-  }
 }
 
 function editUnit() {
@@ -1379,6 +1501,17 @@ const actionHandlers = {
   'remove-worker': (el) => { removeWorker(parseInt(el.dataset.unitIdx, 10), parseInt(el.dataset.workerIdx, 10)); renderWorkersList(); },
   'export-worker-summary-excel': () => exportWorkerSummaryExcel(),
   'generate-pdf': () => generateAndSendPDF(),
+  'cycle-fab-position': () => {
+    const cur = localStorage.getItem(FAB_POS_KEY) || 'right';
+    const next = cur === 'right' ? 'left' : cur === 'left' ? 'center' : 'right';
+    setFabPosition(next);
+  },
+  'cycle-font-size': () => {
+    const cur = localStorage.getItem(FS_KEY) || 'md';
+    const next = cur === 'md' ? 'lg' : cur === 'lg' ? 'xl' : 'md';
+    setFontSize(next);
+    showToastMsg(`Tamaño letra: ${next === 'md' ? 'Normal' : next === 'lg' ? 'Grande' : 'Muy grande'}`, 'info');
+  },
 };
 
 function dispatchAction(e, target) {
@@ -1405,8 +1538,8 @@ document.addEventListener('change', (e) => {
 
 document.addEventListener('input', (e) => {
   const id = e.target.id;
-  if (id === 'searchInput' || id === 'monthFilter' || id === 'unitFilter' || id === 'summaryMonthFilter' || id === 'manageUnitSelect') {
-    if (id === 'manageUnitSelect') renderWorkersList();
+  if (id === 'searchInput' || id === 'monthFilter' || id === 'unitFilter' || id === 'summaryMonthFilter' || id === 'manageUnitSelect' || id === 'workerFilterInput') {
+    if (id === 'manageUnitSelect' || id === 'workerFilterInput') renderWorkersList();
     else {
       if (id !== 'summaryMonthFilter') coverageOnlyFilter = false;
       currentPage = 1;
@@ -1471,6 +1604,27 @@ document.addEventListener('click', (e) => {
   }
 });
 
+// Action sheet actions
+document.addEventListener('click', (e) => {
+  const sheetBtn = e.target.closest('[data-action^="sheet-"]');
+  if (!sheetBtn) return;
+  e.preventDefault();
+  const action = sheetBtn.dataset.action;
+  if (action === 'sheet-close') { closeActionSheet(); return; }
+  if (!actionSheetTargetId) { closeActionSheet(); return; }
+  if (action === 'sheet-edit') editRecord(actionSheetTargetId);
+  if (action === 'sheet-duplicate') duplicateRecord(actionSheetTargetId);
+  if (action === 'sheet-delete') deleteRecord(actionSheetTargetId);
+  closeActionSheet();
+});
+
+// Tap on the overlay (outside the sheet) closes it
+document.addEventListener('click', (e) => {
+  const overlay = document.getElementById('actionSheet');
+  if (!overlay || !overlay.classList.contains('show')) return;
+  if (e.target === overlay) closeActionSheet();
+}, true);
+
 // Close "More" menu on outside click
 document.addEventListener('click', (e) => {
   if (!e.target.closest('.bottom-nav-more-menu') && !e.target.closest('[data-action="toggle-more-menu"]')) {
@@ -1482,6 +1636,16 @@ document.addEventListener('click', (e) => {
     }
   }
   if (!e.target.closest('.dropdown')) closeAllDropdowns();
+});
+
+// FAB menu actions (delegation)
+document.addEventListener('click', (e) => {
+  const fabBtn = e.target.closest('#fabMenu [data-action]');
+  if (!fabBtn) return;
+  e.preventDefault();
+  document.getElementById('fabMenu').classList.remove('show');
+  if (fabBtn.dataset.action === 'open-record-direct') openRecordModalWith('direct');
+  else if (fabBtn.dataset.action === 'open-record-coverage') openRecordModalWith('coverage');
 });
 
 // Chart.js lazy-load (for monthly trend chart)
@@ -1578,6 +1742,280 @@ async function renderMonthlyChart() {
 }
 
 // ========================
+// One-hand UX extras
+// ========================
+
+// Online / offline indicator
+function updateOnlineStatus() {
+  const banner = document.getElementById('offlineBanner');
+  if (!banner) return;
+  const online = navigator.onLine;
+  banner.classList.toggle('show', !online);
+  if (!online) haptic([40, 60, 40]);
+}
+window.addEventListener('online', updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+
+// Pull-to-refresh (Android-native gesture)
+let ptrTouchY = 0;
+let ptrActive = false;
+function initPullToRefresh() {
+  const indicator = document.getElementById('ptrIndicator');
+  window.addEventListener('touchstart', (e) => {
+    if (window.scrollY > 0) return;
+    ptrTouchY = e.touches[0].clientY;
+    ptrActive = true;
+  }, { passive: true });
+  window.addEventListener('touchmove', (e) => {
+    if (!ptrActive) return;
+    const dy = e.touches[0].clientY - ptrTouchY;
+    if (dy > 0 && window.scrollY === 0) {
+      if (dy > 80) {
+        if (indicator) {
+          indicator.classList.add('show');
+          indicator.textContent = '↻ Suelta para refrescar';
+        }
+      }
+    }
+  }, { passive: true });
+  window.addEventListener('touchend', (e) => {
+    if (!ptrActive) return;
+    const dy = (e.changedTouches[0].clientY - ptrTouchY);
+    if (dy > 80 && window.scrollY === 0) {
+      if (indicator) indicator.textContent = '⟳ Actualizando…';
+      setTimeout(() => {
+        render();
+        if (indicator) { indicator.classList.remove('show'); }
+        haptic(20);
+        showToastMsg('Lista actualizada.', 'info');
+      }, 300);
+    } else {
+      if (indicator) indicator.classList.remove('show');
+    }
+    ptrActive = false;
+    ptrTouchY = 0;
+  });
+}
+
+// Visual viewport: keep focused input above the on-screen keyboard
+function initVisualViewportHandlers() {
+  if (!window.visualViewport) return;
+  const handler = () => {
+    const focused = document.activeElement;
+    if (!focused || !focused.closest('.modal.open')) return;
+    if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA' && document.activeElement.tagName !== 'SELECT') return;
+    setTimeout(() => {
+      const rect = focused.getBoundingClientRect();
+      const bottom = window.visualViewport.offsetTop + window.visualViewport.height;
+      if (rect.bottom > bottom - 60) {
+        focused.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }
+    }, 50);
+  };
+  window.visualViewport.addEventListener('resize', handler);
+}
+
+// Long-press action sheet on table rows
+let actionSheetTargetId = null;
+let longPressTimer = null;
+function openActionSheet(recordId) {
+  actionSheetTargetId = recordId;
+  const sheet = document.getElementById('actionSheet');
+  if (!sheet) return;
+  sheet.classList.add('show');
+  sheet.setAttribute('aria-hidden', 'false');
+  haptic([15, 30, 15]);
+}
+function closeActionSheet() {
+  const sheet = document.getElementById('actionSheet');
+  if (!sheet) return;
+  sheet.classList.remove('show');
+  sheet.setAttribute('aria-hidden', 'true');
+  actionSheetTargetId = null;
+}
+
+function handleLongPress(e) {
+  const tr = e.target.closest('[data-long-press]');
+  if (!tr) return;
+  e.preventDefault();
+  openActionSheet(parseInt(tr.dataset.recordId, 10));
+}
+function bindLongPress() {
+  const tbody = document.getElementById('recordsTbody');
+  if (!tbody) return;
+  // Use click for fallback; long-press via timer with touch events
+  tbody.addEventListener('touchstart', (e) => {
+    const tr = e.target.closest('tr[data-record-id]');
+    if (!tr) return;
+    longPressTimer = setTimeout(() => {
+      openActionSheet(parseInt(tr.dataset.recordId, 10));
+      longPressTimer = null;
+    }, 550);
+  }, { passive: true });
+  tbody.addEventListener('touchend', () => {
+    if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+  });
+  tbody.addEventListener('touchmove', () => {
+    if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+  }, { passive: true });
+  tbody.addEventListener('contextmenu', handleLongPress);
+  // Tap on row opens detail (not edit) on mobile to avoid accidental mis-edit
+  tbody.addEventListener('click', (e) => {
+    const actionBtn = e.target.closest('[data-action]');
+    const tr = e.target.closest('tr[data-record-id]');
+    if (!tr) return;
+    if (actionBtn) return;
+    if (window.matchMedia('(max-width: 640px)').matches) {
+      openActionSheet(parseInt(tr.dataset.recordId, 10));
+    }
+  });
+}
+
+// Hours stepper (mobile-quick add/sub)
+function bindHoursStepper() {
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.hours-stepper button[data-step]');
+    if (!btn) return;
+    const step = parseFloat(btn.dataset.step);
+    const input = document.getElementById('recHours');
+    if (!input) return;
+    const cur = parseFloat(input.value) || 0;
+    const next = Math.max(0.5, Math.min(24, Math.round((cur + step) * 2) / 2));
+    input.value = next;
+    haptic(8);
+  });
+}
+
+// FAB press-and-hold menu
+function bindFabLongPress() {
+  const fab = document.querySelector('.fab');
+  const menu = document.getElementById('fabMenu');
+  if (!fab || !menu) return;
+  let timer = null;
+  const start = (e) => {
+    timer = setTimeout(() => {
+      menu.classList.add('show');
+      haptic([10, 30, 10]);
+      timer = null;
+    }, 450);
+  };
+  const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } };
+  fab.addEventListener('touchstart', start, { passive: true });
+  fab.addEventListener('touchend', cancel);
+  fab.addEventListener('touchmove', cancel);
+  // Long-press on desktop: contextmenu
+  fab.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    menu.classList.add('show');
+  });
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.fab') && !e.target.closest('#fabMenu') && menu.classList.contains('show')) {
+      menu.classList.remove('show');
+    }
+  });
+}
+
+// Open record modal with prefilled type
+function openRecordModalWith(kind) {
+  document.getElementById('editingRecordId').value = '';
+  document.getElementById('modalTitle').innerText = kind === 'coverage'
+    ? '🔄 Registrar Cobertura'
+    : '🆕 Registrar Hora Extra';
+  document.getElementById('recWorker').value = '';
+  document.getElementById('recUnit').selectedIndex = 0;
+  document.getElementById('recCovering').value = kind === 'coverage' ? '' : '';
+  document.getElementById('recReason').value = kind === 'coverage' ? 'Cobertura por baja' : 'Horas extras asignadas';
+  document.getElementById('recHours').value = 12;
+  document.getElementById('recDate').value = todayLocalISO();
+  filterWorkersByUnit();
+  // For "coverage" open, after fill, set a sensible default covering input placeholder as emphasis
+  if (kind === 'coverage') {
+    const cov = document.getElementById('recCovering');
+    if (cov) cov.required = false;
+  }
+  openModal('recordModal');
+  // highlight covering input by focusing after open
+  if (kind === 'coverage') {
+    setTimeout(() => {
+      const cov = document.getElementById('recCovering');
+      if (cov) cov.focus();
+    }, 120);
+  }
+}
+
+// Duplicate record (kept at bottom)
+function duplicateRecord(id) {
+  const r = records.find(x => x.id === id);
+  if (!r) return;
+  const copy = normalizeRecord({
+    ...r,
+    id: undefined,
+    covering: 'N/A (Extra Directa)',
+    reason: (r.reason || '').includes('(duplicado)') ? r.reason : `${r.reason} (duplicado)`,
+    createdAt: new Date().toLocaleString('es-ES')
+  });
+  records.unshift(copy);
+  saveRecords();
+  currentPage = 1;
+  markEdited();
+  render();
+  showToastMsg('Registro duplicado.', 'success');
+  haptic(15);
+}
+
+// Horizontal swipe between tab views (mobile)
+const SWIPE_NAV = ['open-record-modal', 'open-calendar', 'open-charts', 'open-worker-summary'];
+function bindHorizontalSwipe() {
+  let sx = 0, sy = 0, dist = 0, t = null;
+  document.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) return;
+    sx = e.touches[0].clientX;
+    sy = e.touches[0].clientY;
+    dist = 0;
+    t = Date.now();
+  }, { passive: true });
+  document.addEventListener('touchend', (e) => {
+    if (sx === 0) return;
+    const ex = e.changedTouches[0].clientX;
+    const ey = e.changedTouches[0].clientY;
+    const dx = ex - sx;
+    const dy = ey - sy;
+    const dt = Date.now() - (t || 0);
+    sx = sy = 0;
+    // Only when swipe is more horizontal than vertical and is long enough and fast
+    if (dt > 600) return;
+    if (Math.abs(dx) < 80 || Math.abs(dx) < Math.abs(dy)) return;
+    if (window.matchMedia && window.matchMedia('(min-width: 641px)').matches) return;
+    if (dx < 0) {
+      // Left swipe → next view
+      cyclePrevView(1);
+    } else {
+      // Right swipe → previous view
+      cyclePrevView(-1);
+    }
+  });
+}
+function cyclePrevView(dir) {
+  // Find which view is currently visible (any of the modals open)
+  const open = SWIPE_NAV.find(a => {
+    const id = a === 'open-record-modal' ? 'recordModal'
+      : a === 'open-calendar' ? 'calendarModal'
+      : a === 'open-charts' ? 'chartsModal'
+      : a === 'open-worker-summary' ? 'workerSummaryModal' : null;
+    return id && document.getElementById(id)?.classList.contains('open');
+  });
+  if (open) return; // only cycle on dashboard
+  // Cycle between Dashboard, Calendar, Charts, Summary
+  const order = ['open-calendar', 'open-charts', 'open-worker-summary'];
+  // Soft hint: lightweight swipe next view → just open calendar or charts
+  const target = dir === 1 ? 'open-charts' : 'open-calendar';
+  if (order.includes(target)) {
+    if (target === 'open-calendar') openCalendarModal();
+    if (target === 'open-charts') openChartsModal();
+  }
+}
+
+// ========================
 // Service worker registration
 // ========================
 if ('serviceWorker' in navigator) {
@@ -1616,11 +2054,22 @@ window.addEventListener('hashchange', () => {
 
 document.addEventListener('DOMContentLoaded', () => {
   loadTheme();
+  applyFabPosition();
+  applyFontSize();
   initDatalists();
   initMonthFilter();
   initUnitFilter();
   render();
   document.getElementById('recUnit').addEventListener('change', filterWorkersByUnit);
   initAutoBackup();
-  if (window.location.hash === '#registrar') openRecordModal();
+  bindLongPress();
+  bindHoursStepper();
+  bindFabLongPress();
+  initPullToRefresh();
+  initVisualViewportHandlers();
+  updateOnlineStatus();
+  // Swipe gestures between Dashboard / Calendario / Gráficos / Resumen
+  bindHorizontalSwipe();
+  if (window.location.hash === '#registrar') openRecordModalWith('direct');
+  else if (window.location.hash === '#registrar-cobertura') openRecordModalWith('coverage');
 });

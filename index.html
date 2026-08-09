@@ -28,6 +28,9 @@
 
 <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
 
+<div class="offline-banner" id="offlineBanner" role="status" aria-live="polite">⚠️ Estás sin conexión — los cambios se guardan localmente</div>
+<div class="ptr-indicator" id="ptrIndicator" aria-live="polite">⟲ Soltando para refrescar…</div>
+
 <header role="banner">
   <div class="header-wrap">
     <div class="logo" aria-label="Logo">⏱️ Control de Horas Extras</div>
@@ -60,6 +63,8 @@
           <button data-action="open-workers" role="menuitem">👥 Trabajadores / Unidades</button>
           <button data-action="create-backup" role="menuitem">💾 Crear Backup</button>
           <button data-action="restore-backup" role="menuitem">🔄 Restaurar Backup</button>
+          <button data-action="cycle-fab-position" role="menuitem">📍 Posición FAB</button>
+          <button data-action="cycle-font-size" role="menuitem">🔠 Tamaño letra</button>
           <button data-action="install-pwa" id="installMenuBtn" style="display:none;" role="menuitem">📲 Instalar App</button>
         </div>
       </div>
@@ -235,9 +240,15 @@
           <label for="recDate">Día / Fecha</label>
           <input type="date" id="recDate" required>
         </div>
-        <div class="form-group" style="flex:1;">
+        <div class="form-group" style="flex:1.4;">
           <label for="recHours">Horas Extras</label>
-          <input type="number" id="recHours" value="12" step="0.5" min="0.5" max="24" required>
+          <div class="hours-stepper" aria-hidden="false">
+            <button type="button" data-step="-1" aria-label="Restar 1 hora">−1</button>
+            <button type="button" data-step="-0.5" aria-label="Restar media hora">−½</button>
+            <button type="button" data-step="+0.5" aria-label="Sumar media hora">+½</button>
+            <button type="button" data-step="+1" aria-label="Sumar 1 hora">+1</button>
+          </div>
+          <input type="number" id="recHours" value="12" step="0.5" min="0.5" max="24" inputmode="decimal" required>
         </div>
       </div>
       <div class="form-group">
@@ -246,12 +257,12 @@
       </div>
       <div class="form-group">
         <label for="recWorker">Trabajador (Sustituto/a)</label>
-        <input type="text" id="recWorker" list="workersDatalist" placeholder="APELLIDOS, NOMBRE" required>
+        <input type="text" id="recWorker" list="workersDatalist" placeholder="APELLIDOS, NOMBRE" autocomplete="off" autocapitalize="characters" required>
         <datalist id="workersDatalist"></datalist>
       </div>
       <div class="form-group">
         <label for="recCovering">A Quién Cubre (si aplica)</label>
-        <input type="text" id="recCovering" placeholder="APELLIDOS, NOMBRE">
+        <input type="text" id="recCovering" placeholder="APELLIDOS, NOMBRE" autocomplete="off" autocapitalize="characters">
       </div>
       <div class="form-group">
         <label for="recReason">Motivo / Nota</label>
@@ -263,7 +274,7 @@
           <button type="button" class="btn" data-reason="Cobertura por vacaciones">Vacaciones</button>
         </div>
       </div>
-      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+      <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;position:sticky;bottom:0;padding-top:12px;background:var(--card);">
         <button type="button" class="btn" data-modal-close="recordModal">Cancelar</button>
         <button type="submit" class="btn btn-primary">💾 Guardar</button>
       </div>
@@ -347,6 +358,7 @@
       <input type="text" id="editUnitName" placeholder="Nombre de la unidad" style="flex:1;" aria-label="Editar nombre de unidad">
       <button class="btn btn-sm" data-action="edit-unit">✏️ Editar Indicativo</button>
     </div>
+    <input type="search" id="workerFilterInput" placeholder="🔍 Buscar trabajador…" style="margin-bottom:8px;" aria-label="Filtrar trabajadores">
     <div style="max-height:280px;overflow-y:auto;margin-bottom:16px;border:1px solid var(--border);border-radius:10px;">
       <div id="workersList"></div>
     </div>
@@ -394,6 +406,23 @@
       <button class="btn" data-modal-close="emailPDFModal">Cancelar</button>
       <button class="btn btn-primary" data-action="generate-pdf">📄 Generar PDF y Compartir</button>
     </div>
+  </div>
+</div>
+
+<!-- FAB menu (long-press main FAB) -->
+<div class="fab-menu" id="fabMenu" role="menu" aria-label="Acciones rápidas">
+  <button class="fab-mini" data-action="open-record-direct"><span>🆕</span> Directa</button>
+  <button class="fab-mini" data-action="open-record-coverage"><span>🔄</span> Cobertura</button>
+</div>
+
+<!-- Action sheet shown on long-press rows / quick actions -->
+<div class="action-sheet-overlay" id="actionSheet" role="dialog" aria-modal="true" aria-hidden="true">
+  <div class="action-sheet">
+    <h3 id="actionSheetTitle">Acciones</h3>
+    <button class="action-edit" data-action="sheet-edit"><span>✏️</span> Editar</button>
+    <button data-action="sheet-duplicate"><span>📋</span> Duplicar</button>
+    <button class="danger" data-action="sheet-delete"><span>🗑️</span> Eliminar</button>
+    <button class="cancel" data-action="sheet-close"><span>Cancelar</span></button>
   </div>
 </div>
 
