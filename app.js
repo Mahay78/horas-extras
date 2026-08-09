@@ -258,6 +258,32 @@ function setFontSize(v) {
 }
 
 // ========================
+// Feature flag: Vista Vehículos (experimental)
+// ========================
+function getVehiculosEnabled() {
+  const p = loadPrefs();
+  return !!p.vehiculos;
+}
+function setVehiculosEnabled(v) {
+  const p = loadPrefs();
+  p.vehiculos = !!v;
+  savePrefs(p);
+  applyVehiculosVisibility();
+  haptic(15);
+}
+function applyVehiculosVisibility() {
+  const on = getVehiculosEnabled();
+  const btn = document.getElementById('vehiculosHeaderBtn');
+  if (btn) btn.style.display = on ? 'flex' : 'none';
+  const menuBtn = document.getElementById('toggleVehiculosBtn');
+  if (menuBtn) menuBtn.innerText = on ? '🚑 Vista vehículos (on)' : '🚑 Vista vehículos (off)';
+}
+function toggleVehiculos() {
+  setVehiculosEnabled(!getVehiculosEnabled());
+  showToastMsg(getVehiculosEnabled() ? 'Vista vehículos activada' : 'Vista vehículos desactivada', 'info');
+}
+
+// ========================
 // Dropdown menus (ARIA)
 // ========================
 function toggleDropdown(id) {
@@ -1523,6 +1549,10 @@ const actionHandlers = {
     setFontSize(next);
     showToastMsg(`Tamaño letra: ${next === 'md' ? 'Normal' : next === 'lg' ? 'Grande' : 'Muy grande'}`, 'info');
   },
+  'toggle-vehiculos': () => toggleVehiculos(),
+  'open-vehiculos': () => openVehiculosModal(),
+  'vehiculos-cover': (el) => openVehiculosCover(el.dataset.unitKey),
+  'vehiculos-view': (el) => openVehiculosView(el.dataset.unitKey),
 };
 
 function dispatchAction(e, target) {
@@ -1549,8 +1579,9 @@ document.addEventListener('change', (e) => {
 
 document.addEventListener('input', (e) => {
   const id = e.target.id;
-  if (id === 'searchInput' || id === 'monthFilter' || id === 'unitFilter' || id === 'summaryMonthFilter' || id === 'manageUnitSelect' || id === 'workerFilterInput') {
+  if (id === 'searchInput' || id === 'monthFilter' || id === 'unitFilter' || id === 'summaryMonthFilter' || id === 'manageUnitSelect' || id === 'workerFilterInput' || id === 'vehiculosDay') {
     if (id === 'manageUnitSelect' || id === 'workerFilterInput') renderWorkersList();
+    else if (id === 'vehiculosDay') renderVehiculos();
     else {
       if (id !== 'summaryMonthFilter') coverageOnlyFilter = false;
       currentPage = 1;
@@ -1750,6 +1781,164 @@ async function renderMonthlyChart() {
       }
     }
   });
+}
+
+// ========================
+// Vista Vehículos / Dotación (experimental, gated by feature flag)
+// ========================
+let vehiculosDay = todayLocalISO();
+function openVehiculosModal() {
+  if (!getVehiculosEnabled()) {
+    showToastMsg('Activa "Vista vehículos" en ⚙️ Gestionar.', 'warning');
+    return;
+  }
+  const dayInput = document.getElementById('vehiculosDay');
+  if (dayInput && !dayInput.value) dayInput.value = vehiculosDay;
+  if (dayInput) dayInput.value = vehiculosDay;
+  renderVehiculos();
+  openModal('vehiculosModal');
+}
+
+function renderVehiculos() {
+  const dayInput = document.getElementById('vehiculosDay');
+  if (dayInput) vehiculosDay = dayInput.value || todayLocalISO();
+  // Aggregate records of the chosen day per unit
+  const dayDate = vehiculosDay;
+  // Convert YYYY-MM-DD to DD/MM/YYYY to match r.date format
+  let parts = dayDate.split('-');
+  let dayES = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : dayDate;
+  const todayRecords = records.filter(r => r && r.date === dayES);
+  const byUnit = {};
+  todayRecords.forEach(r => {
+    const u = r.unit || '';
+    if (!byUnit[u]) byUnit[u] = [];
+    byUnit[u].push(r);
+  });
+  const units = getUnits();
+  const totalUnits = units.length;
+  const totalCovered = units.filter(u => (byUnit[u.unit] || []).length > 0).length;
+  const sinDotacion = units.filter(u => (byUnit[u.unit] || []).length === 0).length;
+  const statsEl = document.getElementById('vehiculosStats');
+  if (statsEl) {
+    statsEl.innerHTML = `
+      <div class="vstat"><span>Unidades</span><b>${totalUnits}</b></div>
+      <div class="vstat"><span>Con dotación</span><b>${totalCovered}</b></div>
+      <div class="vstat alert"><span>Sin cubrir</span><b>${sinDotacion}</b></div>
+    `;
+  }
+  const listEl = document.getElementById('vehiculosList');
+  if (!listEl) return;
+  if (!units.length) {
+    listEl.innerHTML = '<div style="padding:16px;color:var(--muted);text-align:center;">No hay unidades definidas. Ve a 👥 Trabajadores / Unidades.</div>';
+    return;
+  }
+  listEl.innerHTML = '';
+  units.forEach(u => {
+    const items = (byUnit[u.unit] || []).slice().sort((a, b) => {
+      // Sort by date-ish already same; sort by worker name then hours
+      const aw = (a.worker || '').localeCompare(b.worker || '', 'es-ES');
+      if (aw) return aw;
+      return (parseFloat(a.hours) || 0) - (parseFloat(b.hours) || 0);
+    });
+    const totalHoras = items.reduce((s, r) => s + (parseFloat(r.hours) || 0), 0);
+    const coberturas = items.filter(r => r.covering && !String(r.covering).includes('N/A')).length;
+    const directas = items.length - coberturas;
+    const dotacionTotal = u.workers.length;
+    const libres = dotacionTotal - items.length;
+    let pillClass = 'libres';
+    let pillText = `${libres} libres`;
+    if (items.length === 0) { pillClass = 'libres'; pillText = 'Sin dotar'; }
+    else if (libres === 0) { pillClass = 'cubierta'; pillText = 'Cubierta'; }
+    else if (libres <= 2) { pillClass = 'cobertura'; pillText = `${libres} libres`; }
+    else { pillClass = 'libres'; pillText = `${libres} libres`; }
+    let cardClass = 'vehiculo-card';
+    if (items.length === 0) cardClass += ' sin-cobertura';
+    else if (libres > 0) cardClass += ' parcial';
+    else cardClass += ' cubierta';
+    const shortName = escHtml((u.unit || '').split(' - ')[0] || u.unit);
+    const listItems = items.length === 0
+      ? '<div class="vc-empty">Sin asignaciones para hoy.</div>'
+      : items.map(r => {
+          const hrs = parseFloat(r.hours) || 0;
+          const isCov = r.covering && !String(r.covering).includes('N/A');
+          return `<div class="vc-t ${isCov ? 'cobertura' : ''}">
+            <span class="who">${isCov ? '🔄 ' : ''}${escHtml(r.worker || '')}</span>
+            <span class="hrs">${hrs > 0 ? '+'+hrs+'h' : '—'}</span>
+          </div>`;
+        }).join('');
+    const missing = libres > 0
+      ? `<div class="vc-missing">⚠️ Faltan ${libres} plazas para cubrir esta unidad.</div>`
+      : '';
+    const card = document.createElement('div');
+    card.className = cardClass;
+    card.innerHTML = `
+      <div class="vc-head">
+        <div>
+          <div class="vc-name">${shortName}</div>
+          <div class="vc-short-id">${totalHoras > 0 ? `+${totalHoras}h hoy` : 'Sin horas'}</div>
+        </div>
+        <span class="vc-pill ${pillClass}">${pillText}</span>
+      </div>
+      <div class="vc-meta">
+        <b>${directas}</b> directas
+        <b>·</b>
+        <b>${coberturas}</b> coberturas
+        <b>·</b>
+        Dotación <b>${dotacionTotal}</b>
+      </div>
+      <div class="vc-list">${listItems}</div>
+      ${missing}
+      <div class="vc-actions">
+        <button class="btn" data-action="vehiculos-view" data-unit-key="${escHtml(u.unit)}">👁 Ver</button>
+        <button class="btn btn-primary" data-action="vehiculos-cover" data-unit-key="${escHtml(u.unit)}">＋ Cubrir</button>
+      </div>
+    `;
+    listEl.appendChild(card);
+  });
+}
+
+function openVehiculosCover(unitKey) {
+  // Pre-populate record modal with this unit, today date, prefilled reason
+  const unitObj = getUnits().find(u => u.unit === unitKey);
+  if (!unitObj) return;
+  // Close the vehiculos modal first for a cleaner flow
+  closeModal('vehiculosModal');
+  setTimeout(() => {
+    document.getElementById('editingRecordId').value = '';
+    document.getElementById('modalTitle').innerText = '＋ Cubrir plaza — ' + unitObj.unit.split(' - ')[0];
+    document.getElementById('recWorker').value = '';
+    const uSel = document.getElementById('recUnit');
+    for (let i = 0; i < uSel.options.length; i++) {
+      if (uSel.options[i].value === unitKey) { uSel.selectedIndex = i; break; }
+    }
+    document.getElementById('recCovering').value = '';
+    document.getElementById('recReason').value = 'Cobertura por baja';
+    document.getElementById('recHours').value = 12;
+    document.getElementById('recDate').value = vehiculosDay || todayLocalISO();
+    populateAllWorkersDatalists();
+    openModal('recordModal');
+    setTimeout(() => {
+      const w = document.getElementById('recWorker');
+      if (w) w.focus();
+    }, 150);
+  }, 200);
+}
+
+function openVehiculosView(unitKey) {
+  // Show records of the unit for day in the table-card (filter)
+  const dayInput = document.getElementById('vehiculosDay');
+  const day = (dayInput && dayInput.value) || vehiculosDay;
+  const parts = day.split('-');
+  const dayES = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : day;
+  closeModal('vehiculosModal');
+  document.getElementById('monthFilter').value = 'all';
+  document.getElementById('unitFilter').value = unitKey;
+  document.getElementById('searchInput').value = dayES;
+  currentPage = 1;
+  coverageOnlyFilter = false;
+  render();
+  showToastMsg(`Mostrando registros de ${unitKey.split(' - ')[0]} el ${dayES}`, 'info');
+  window.scrollTo({ top: document.querySelector('.table-card')?.offsetTop - 80 || 0, behavior: 'smooth' });
 }
 
 // ========================
@@ -2067,6 +2256,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadTheme();
   applyFabPosition();
   applyFontSize();
+  applyVehiculosVisibility();
   initDatalists();
   initMonthFilter();
   initUnitFilter();
