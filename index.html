@@ -329,9 +329,17 @@
 
 <!-- Modal: Calendario -->
 <div class="modal" id="calendarModal" role="dialog" aria-modal="true" aria-labelledby="calendarTitle" aria-hidden="true">
-  <div class="modal-box" style="max-width:500px;">
+  <div class="modal-box" style="max-width:560px;">
     <h2 id="calendarTitle">📅 Calendario de Horas Extras</h2>
+    <div id="calendarMonthStats" class="cal-month-stats" aria-live="polite"></div>
+    <div id="calendarHeaderBar" class="cal-header-bar">
+      <button class="btn btn-sm" data-cal-nav="-1" aria-label="Mes anterior">◀</button>
+      <b id="calHeaderLabel" style="font-size:16px;"></b>
+      <button class="btn btn-sm" data-action="cal-today" title="Ir a hoy" aria-label="Ir al mes actual">Hoy</button>
+      <button class="btn btn-sm" data-cal-nav="1" aria-label="Mes siguiente">▶</button>
+    </div>
     <div id="calendarContainer"></div>
+    <div id="calendarLegend" class="cal-legend" aria-label="Leyenda del calendario"></div>
     <div style="display:flex;justify-content:flex-end;margin-top:16px;">
       <button class="btn" data-modal-close="calendarModal">Cerrar</button>
     </div>

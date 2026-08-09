@@ -1027,22 +1027,42 @@ function renderCalendar() {
   const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   const days = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
   const container = document.getElementById('calendarContainer');
-  const recordMap = {};
+  const monthKeyBase = `${calendarYear}-${String(calendarMonth+1).padStart(2,'0')}-`;
+  const dayMap = {};   // key -> { records: [], hours: 0, shifts: Set, workers: Set }
+  let monthHours = 0;
+  const monthWorkers = new Set();
+  let monthCover = 0;
   records.forEach(r => {
     const parts = r.date.split('/');
-    if (parts.length === 3) {
-      const key = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
-      recordMap[key] = (recordMap[key] || 0) + 1;
-    }
+    if (parts.length !== 3) return;
+    const key = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+    if (!key.startsWith(monthKeyBase)) return;
+    const hrs = parseFloat(r.hours) || 0;
+    const shift = r.shift || inferShift(r.unit, hrs, '');
+    if (!dayMap[key]) dayMap[key] = { records: [], hours: 0, shifts: new Set(), workers: new Set() };
+    dayMap[key].records.push(r);
+    dayMap[key].hours += hrs;
+    if (shift) dayMap[key].shifts.add(shift);
+    if (r.worker) dayMap[key].workers.add(r.worker);
+    monthHours += hrs;
+    if (r.worker) monthWorkers.add(r.worker);
+    if (r.covering && !String(r.covering).includes('N/A')) monthCover++;
   });
+
+  // Month summary
+  const monthStatsEl = document.getElementById('calendarMonthStats');
+  if (monthStatsEl) {
+    const dayCount = Object.keys(dayMap).length;
+    monthStatsEl.innerHTML = `🧮 <b>${monthHours}h</b> en mes · <b>${dayCount}</b> días con extras · <b>${monthWorkers.size}</b> trabajadores · <b>${monthCover}</b> coberturas`;
+  }
+
+  const headerLabel = document.getElementById('calHeaderLabel');
+  if (headerLabel) headerLabel.textContent = `${months[calendarMonth]} ${calendarYear}`;
+
   const today = new Date();
   const todayKey = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">`;
-  html += `<button class="btn btn-sm" data-cal-nav="-1" aria-label="Mes anterior">◀</button>`;
-  html += `<b style="font-size:16px;">${months[calendarMonth]} ${calendarYear}</b>`;
-  html += `<button class="btn btn-sm" data-cal-nav="1" aria-label="Mes siguiente">▶</button>`;
-  html += `</div>`;
-  html += `<div class="calendar-grid">`;
+
+  let html = `<div class="calendar-grid">`;
   days.forEach(d => { html += `<div class="calendar-day-header">${d}</div>`; });
   const firstDay = new Date(calendarYear, calendarMonth, 1);
   let startDay = firstDay.getDay() - 1;
@@ -1051,18 +1071,40 @@ function renderCalendar() {
   for (let i = 0; i < startDay; i++) html += `<div></div>`;
   for (let d = 1; d <= daysInMonth; d++) {
     const key = `${calendarYear}-${String(calendarMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const count = recordMap[key] || 0;
+    const info = dayMap[key];
     const isToday = key === todayKey;
     const classes = ['calendar-day'];
     if (isToday) classes.push('today');
-    if (count > 0) classes.push('has-records');
-    html += `<div class="${classes.join(' ')}" data-cal-day="${d}" role="button" tabindex="0" aria-label="${d} de ${months[calendarMonth]}, ${count} registros">
-      <div style="font-weight:600;">${d}</div>
-      ${count > 0 ? `<div style="font-size:10px;color:var(--primary);">${count} reg.</div>` : ''}
+    if (info) {
+      classes.push('has-records');
+      const h = info.hours;
+      if (h >= 36) classes.push('intensity-high');
+      else if (h >= 18) classes.push('intensity-mid');
+      else classes.push('intensity-low');
+    }
+    const count = info ? info.records.length : 0;
+    const htmlHours = info ? `<div class="cal-day-hours">+${info.hours}h</div>` : '';
+    const htmlCount = info && count > 1 ? `<div class="cal-day-count">${count} reg.</div>` : '';
+    html += `<div class="${classes.join(' ')}" data-cal-day="${d}" role="button" tabindex="0" aria-label="${d} de ${months[calendarMonth]}, ${count} registros, ${info ? info.hours : 0} horas">
+      <div class="cal-day-num">${d}</div>
+      ${htmlHours}
+      ${htmlCount}
     </div>`;
   }
   html += `</div>`;
-  html += `<div id="calDayDetail" style="margin-top:12px;"></div>`;
+
+  // Legend
+  const legendEl = document.getElementById('calendarLegend');
+  if (legendEl) {
+    legendEl.innerHTML = `
+      <span class="cal-legend-item"><span class="cal-dot today"></span> Hoy</span>
+      <span class="cal-legend-item"><span class="cal-dot low"></span> &lt;18h</span>
+      <span class="cal-legend-item"><span class="cal-dot mid"></span> 18-36h</span>
+      <span class="cal-legend-item"><span class="cal-dot high"></span> &gt;36h</span>`;
+  }
+
+  // Day detail: reset to nothing when changing month
+  html += `<div id="calDayDetail" class="cal-day-detail" style="display:none;"></div>`;
   container.innerHTML = html;
 }
 
@@ -1070,26 +1112,98 @@ function changeCalMonth(delta) {
   calendarMonth += delta;
   if (calendarMonth > 11) { calendarMonth = 0; calendarYear++; }
   if (calendarMonth < 0) { calendarMonth = 11; calendarYear--; }
+  calendarSelectedDay = null;
   renderCalendar();
 }
 
+let calendarSelectedDay = null;
+
 function showCalDayDetail(year, month, day) {
+  calendarSelectedDay = { year, month, day };
   const dateStr = `${String(day).padStart(2,'0')}/${String(month+1).padStart(2,'0')}/${year}`;
   const dayRecords = records.filter(r => r.date === dateStr);
   const detail = document.getElementById('calDayDetail');
+  if (!detail) return;
+  detail.style.display = '';
   if (dayRecords.length === 0) {
-    detail.innerHTML = `<div style="padding:12px;text-align:center;color:var(--muted);font-size:13px;">Sin registros el ${dateStr}</div>`;
+    detail.innerHTML = `<div class="cal-dd-header">📅 ${dateStr}</div><div style="padding:12px;text-align:center;color:var(--muted);font-size:13px;">Sin registros aún. ¿Añades el primer cubreturno?</div>`;
     return;
   }
-  let html = `<div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;"><div style="padding:8px 12px;background:var(--primary-glow);font-weight:600;font-size:13px;">📅 ${dateStr} — ${dayRecords.length} registro${dayRecords.length > 1 ? 's' : ''}</div>`;
+  const totalH = dayRecords.reduce((s, r) => s + (parseFloat(r.hours) || 0), 0);
+  const group = { dia: [], noche: [], '24': [], '': [] };
   dayRecords.forEach(r => {
-    html += `<div style="padding:8px 12px;border-top:1px solid var(--border);font-size:12px;">
-      <b>${escHtml(r.worker)}</b> <span class="badge badge-hours">+${r.hours}h</span><br>
-      <span style="color:var(--muted);">${escHtml(r.unit.split(' - ')[0])}</span>
-    </div>`;
+    const hrs = parseFloat(r.hours) || 0;
+    const shift = r.shift || inferShift(r.unit, hrs, '');
+    group[(group[shift] ? shift : '')].push(r);
   });
+  let html = `<div class="cal-dd-header">📅 ${dateStr} — ${dayRecords.length} registros · +${totalH}h</div>`;
+  const renderRow = (arr, label, icon) => {
+    if (!arr.length) return '';
+    return arr.map(r => `
+      <div class="cal-dd-row">
+        <span>${icon}</span>
+        <b>${escHtml(r.worker)}</b>
+        <span class="badge badge-hours">+${parseFloat(r.hours) || 0}h</span>
+        ${r.covering && !String(r.covering).includes('N/A') ? `<span class="badge badge-covered">🔄 ${escHtml(r.covering)}</span>` : ''}
+        <span style="color:var(--muted);font-size:11px;">· ${escHtml((r.unit || '').split(' - ')[0])}</span>
+      </div>`).join('');
+  };
+  html += renderRow(group.dia, 'Día', '☀️');
+  html += renderRow(group.noche, 'Noche', '🌙');
+  html += renderRow(group['24'], '24h', '🕓');
+  html += renderRow(group[''], 'Otros', '—');
+
+  // Detect if this day has a 24h unit with room for unbundled turn
+  const units24 = new Set();
+  dayRecords.forEach(r => {
+    const u = r.unit || '';
+    if (/24h/i.test(u) || (parseUnitWindow(u) && parseUnitWindow(u).start === parseUnitWindow(u).end)) units24.add(u);
+  });
+
+  html += `<div class="cal-dd-actions">`;
+  html += `<button class="btn btn-sm" data-action="cal-add-dia" data-cal-day="${day}" data-cal-month="${month}" data-cal-year="${year}" style="flex:1;">＋ Día</button>`;
+  html += `<button class="btn btn-sm" data-action="cal-add-noche" data-cal-day="${day}" data-cal-month="${month}" data-cal-year="${year}" style="flex:1;">＋ Noche</button>`;
   html += `</div>`;
   detail.innerHTML = html;
+}
+
+function calendarTargetDate() {
+  if (!calendarSelectedDay) {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth(), day: now.getDate() };
+  }
+  return calendarSelectedDay;
+}
+
+// Open record modal pre-set to this calendar day + shift
+function addCalendarShift(shiftKind) {
+  const { year, month, day } = calendarTargetDate();
+  const dateStr = `${String(day).padStart(2,'0')}/${String(month+1).padStart(2,'0')}/${year}`;
+  closeModal('calendarModal');
+  setTimeout(() => {
+    document.getElementById('editingRecordId').value = '';
+    document.getElementById('modalTitle').innerText = shiftKind === 'noche' ? '🌙 Añadir turno NOCHE' : '☀️ Añadir turno DÍA';
+    document.getElementById('recWorker').value = '';
+    document.getElementById('recCovering').value = '';
+    document.getElementById('recReason').value = shiftKind === 'noche' ? 'Cobertura por baja' : 'Horas extras asignadas';
+    document.getElementById('recHours').value = 12;
+    const parts = dateStr.split('/');
+    document.getElementById('recDate').value = `${parts[2]}-${parts[1]}-${parts[0]}`;
+    // Pick best-matching 24h unit (first with 24h), else keep index 0
+    const sel = document.getElementById('recUnit');
+    const opts = Array.from(sel.options);
+    const unit24 = opts.findIndex(o => /24h/i.test(o.value));
+    if (unit24 >= 0) sel.selectedIndex = unit24;
+    else sel.selectedIndex = 0;
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+    document.getElementById('recShift').value = shiftKind;
+    updateShiftUi(shiftKind, { keepExplicit: true });
+    openModal('recordModal');
+    setTimeout(() => {
+      const w = document.getElementById('recWorker');
+      if (w) w.focus();
+    }, 150);
+  }, 200);
 }
 
 // ========================
@@ -1674,6 +1788,16 @@ const actionHandlers = {
   'open-vehiculos': () => openVehiculosModal(),
   'vehiculos-cover': (el) => openVehiculosCover(el.dataset.unitKey),
   'vehiculos-view': (el) => openVehiculosView(el.dataset.unitKey),
+  'cal-add-dia': () => addCalendarShift('dia'),
+  'cal-add-noche': () => addCalendarShift('noche'),
+  'cal-today': () => {
+    const now = new Date();
+    calendarYear = now.getFullYear();
+    calendarMonth = now.getMonth();
+    calendarSelectedDay = null;
+    renderCalendar();
+    haptic(10);
+  },
 };
 
 function dispatchAction(e, target) {
