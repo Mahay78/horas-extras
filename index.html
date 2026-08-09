@@ -61,6 +61,7 @@
         <button class="btn btn-icon" data-action="toggle-dropdown" data-target="menuManage" aria-haspopup="menu" aria-expanded="false" aria-label="Gestionar">⚙️</button>
         <div class="dropdown-menu" id="menuManage" role="menu">
           <button data-action="open-workers" role="menuitem">👥 Trabajadores / Unidades</button>
+          <button data-action="toggle-vehiculos" id="toggleVehiculosBtn" role="menuitem">🚑 Vista vehículos (off)</button>
           <button data-action="create-backup" role="menuitem">💾 Crear Backup</button>
           <button data-action="restore-backup" role="menuitem">🔄 Restaurar Backup</button>
           <button data-action="cycle-fab-position" role="menuitem">📍 Posición FAB</button>
@@ -69,6 +70,7 @@
         </div>
       </div>
 
+      <button class="btn btn-icon" data-action="open-vehiculos" id="vehiculosHeaderBtn" title="Vehículos / Dotación" aria-label="Ver vehículos y dotación" style="display:none;">🚑</button>
       <button class="btn btn-icon" data-action="toggle-theme" id="themeBtn" title="Cambiar tema" aria-label="Cambiar tema">🌙</button>
       <button class="btn btn-icon btn-danger" data-action="clear-all-records" title="Vaciar lista" aria-label="Vaciar lista de registros">🗑️</button>
       <input type="file" id="importJSONInput" accept=".json" style="display:none" data-action="json-file-selected" aria-label="Importar archivo JSON">
@@ -424,6 +426,22 @@
     <button data-action="sheet-duplicate"><span>📋</span> Duplicar</button>
     <button class="danger" data-action="sheet-delete"><span>🗑️</span> Eliminar</button>
     <button class="cancel" data-action="sheet-close"><span>Cancelar</span></button>
+  </div>
+</div>
+
+<!-- Modal: Vehículos / Dotación (experimental) -->
+<div class="modal" id="vehiculosModal" role="dialog" aria-modal="true" aria-labelledby="vehiculosTitle" aria-hidden="true">
+  <div class="modal-box" style="max-width:780px;">
+    <h2 id="vehiculosTitle">🚑 Vehículos &amp; Dotación</h2>
+    <div class="form-group">
+      <label for="vehiculosDay">Día</label>
+      <input type="date" id="vehiculosDay">
+    </div>
+    <div id="vehiculosStats" class="vehiculos-stats" aria-live="polite"></div>
+    <div id="vehiculosList" class="vehiculos-list" aria-label="Tarjetas por vehículo"></div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+      <button class="btn" data-modal-close="vehiculosModal">Cerrar</button>
+    </div>
   </div>
 </div>
 
