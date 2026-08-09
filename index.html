@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="Aplicación PWA para el control de horas extras y coberturas de ambulancias">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' cdnjs.cloudflare.com cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' fonts.gstatic.com cdnjs.cloudflare.com; connect-src 'self' https:;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' cdnjs.cloudflare.com cdn.jsdelivr.net cdn.sheetjs.com; style-src 'self' 'unsafe-inline' fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' fonts.gstatic.com cdnjs.cloudflare.com; connect-src 'self' https:;">
 <meta name="theme-color" content="#0f172a">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -162,7 +162,7 @@
       <table>
         <thead>
           <tr>
-            <th class="sortable sorted-desc" data-action="sort-table" data-column="worker" aria-sort="descending">Trabajador <span class="sort-icon asc">▲</span><span class="sort-icon desc">▼</span></th>
+            <th class="sortable" data-action="sort-table" data-column="worker" aria-sort="none">Trabajador <span class="sort-icon asc">▲</span><span class="sort-icon desc">▼</span></th>
             <th class="sortable" data-action="sort-table" data-column="date" aria-sort="none">Fecha <span class="sort-icon asc">▲</span><span class="sort-icon desc">▼</span></th>
             <th>Unidad</th>
             <th>Tipo</th>

@@ -33,7 +33,7 @@ let calendarMonth = new Date().getMonth();
 // Pagination
 const PAGE_SIZE = 25;
 let currentPage = 1;
-let lastFilteredRecords = [];
+let coverageOnlyFilter = false;
 
 let lastEditTime = null;
 
@@ -43,7 +43,7 @@ let lastEditTime = null;
 function loadRecords() {
   try {
     const r = localStorage.getItem(STORAGE_KEY);
-    if (r) return JSON.parse(r);
+    if (r) return JSON.parse(r).map(normalizeRecord);
   } catch(e) {}
   return [];
 }
@@ -108,6 +108,41 @@ function escHtml(s) {
   const d = document.createElement('div');
   d.textContent = s || '';
   return d.innerHTML;
+}
+
+// ========================
+// Data helpers
+// ========================
+function todayLocalISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function normalizeRecord(r) {
+  r = r || {};
+  return {
+    id: r.id != null ? r.id : Date.now() + Math.floor(Math.random() * 1000),
+    worker: r.worker != null ? String(r.worker) : 'SIN NOMBRE',
+    unit: r.unit != null ? String(r.unit) : '',
+    date: r.date != null ? String(r.date) : '',
+    hours: parseFloat(r.hours) || 0,
+    covering: r.covering != null ? String(r.covering) : 'N/A (Extra Directa)',
+    reason: r.reason != null ? String(r.reason) : 'Horas extras asignadas',
+    createdAt: r.createdAt != null ? String(r.createdAt) : new Date().toLocaleString('es-ES')
+  };
+}
+
+function computeTotals(list) {
+  let totalHours = 0;
+  const workers = new Set();
+  let covers = 0;
+  (list || []).forEach(r => {
+    if (!r) return;
+    totalHours += parseFloat(r.hours) || 0;
+    if (r.worker) workers.add(r.worker);
+    if (r.covering && !r.covering.includes('N/A')) covers++;
+  });
+  return { totalHours, workers: workers.size, covers };
 }
 
 // ========================
@@ -188,6 +223,10 @@ function closeModal(id) {
   if (!modal) return;
   modal.classList.remove('open');
   modal.setAttribute('aria-hidden', 'true');
+  if (modal._focusTrapHandler) {
+    modal.removeEventListener('keydown', modal._focusTrapHandler);
+    delete modal._focusTrapHandler;
+  }
   if (lastFocusedElement && lastFocusedElement.focus) {
     lastFocusedElement.focus();
   }
@@ -199,7 +238,7 @@ function trapFocus(modal) {
   if (focusables.length === 0) return;
   const first = focusables[0];
   first.focus();
-  modal.addEventListener('keydown', (e) => {
+  const handler = (e) => {
     if (e.key !== 'Tab') return;
     const last = focusables[focusables.length - 1];
     if (e.shiftKey && document.activeElement === first) {
@@ -209,7 +248,9 @@ function trapFocus(modal) {
       e.preventDefault();
       first.focus();
     }
-  });
+  };
+  modal._focusTrapHandler = handler;
+  modal.addEventListener('keydown', handler);
 }
 
 // ========================
@@ -221,7 +262,8 @@ document.addEventListener('keydown', (e) => {
     openRecordModal();
   }
   if (e.key === 'Escape') {
-    document.querySelectorAll('.modal.open').forEach(m => m.classList.remove('open'));
+    const openModals = document.querySelectorAll('.modal.open');
+    if (openModals.length > 0) closeModal(openModals[openModals.length - 1].id);
     closeAllDropdowns();
   }
 });
@@ -239,12 +281,23 @@ function sortTable(column) {
   document.querySelectorAll('th.sortable').forEach(th => {
     th.classList.remove('sorted-asc', 'sorted-desc');
   });
-  const activeTh = document.querySelector(`th.sortable[onclick*="${column}"]`);
-  if (activeTh) {
-    activeTh.classList.add(sortState.direction === 'asc' ? 'sorted-asc' : 'sorted-desc');
-  }
   currentPage = 1;
+  updateSortIndicators();
   render();
+}
+
+function updateSortIndicators() {
+  document.querySelectorAll('th.sortable').forEach(th => {
+    const col = th.dataset.column;
+    th.classList.remove('sorted-asc', 'sorted-desc');
+    if (col === sortState.column) {
+      const ascending = sortState.direction === 'asc';
+      th.classList.add(ascending ? 'sorted-asc' : 'sorted-desc');
+      th.setAttribute('aria-sort', ascending ? 'ascending' : 'descending');
+    } else {
+      th.setAttribute('aria-sort', 'none');
+    }
+  });
 }
 
 function applySort(recordsToSort) {
@@ -278,7 +331,6 @@ function initDatalists() {
     opt.textContent = u.unit.split(' - ')[0];
     uSel.appendChild(opt);
   });
-  uSel.addEventListener('change', filterWorkersByUnit);
   const dl = document.getElementById('workersDatalist');
   dl.innerHTML = '';
 }
@@ -316,7 +368,7 @@ function openRecordModal() {
   document.getElementById('recCovering').value = '';
   document.getElementById('recReason').value = '';
   document.getElementById('recHours').value = 12;
-  document.getElementById('recDate').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('recDate').value = todayLocalISO();
   filterWorkersByUnit();
   openModal('recordModal');
 }
@@ -337,7 +389,7 @@ function editRecord(id) {
     if (parts.length === 3) {
       document.getElementById('recDate').value = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
     } else {
-      document.getElementById('recDate').value = new Date().toISOString().slice(0, 10);
+      document.getElementById('recDate').value = todayLocalISO();
     }
   }
   openModal('recordModal');
@@ -474,7 +526,7 @@ function render() {
 
   let filtered = records;
   if (monthFilter.startsWith('month_')) {
-    const [, , year, month] = monthFilter.split('_');
+    const [, year, month] = monthFilter.split('_');
     const monthNum = parseInt(month);
     filtered = filtered.filter(r => {
       const parts = r.date.split('/');
@@ -487,17 +539,19 @@ function render() {
   if (unitFilter !== 'all') {
     filtered = filtered.filter(r => r.unit === unitFilter);
   }
+  if (coverageOnlyFilter) {
+    filtered = filtered.filter(r => r.covering && !r.covering.includes('N/A'));
+  }
   if (query) {
     filtered = filtered.filter(r =>
-      r.worker.toLowerCase().includes(query) ||
-      r.unit.toLowerCase().includes(query) ||
-      r.covering.toLowerCase().includes(query) ||
-      r.reason.toLowerCase().includes(query) ||
-      r.date.includes(query)
+      (r.worker || '').toLowerCase().includes(query) ||
+      (r.unit || '').toLowerCase().includes(query) ||
+      (r.covering || '').toLowerCase().includes(query) ||
+      (r.reason || '').toLowerCase().includes(query) ||
+      (r.date || '').includes(query)
     );
   }
   filtered = applySort(filtered);
-  lastFilteredRecords = filtered;
 
   if (filtered.length === 0) {
     emptyState.style.display = 'block';
@@ -511,14 +565,15 @@ function render() {
     const pageRecords = filtered.slice(start, start + PAGE_SIZE);
     pageRecords.forEach(r => {
       const tr = document.createElement('tr');
+      const hrs = parseFloat(r.hours) || 0;
       const isCovering = r.covering && !r.covering.includes('N/A');
       tr.dataset.recordId = r.id;
       tr.innerHTML = `
         <td style="font-weight:700;">${escHtml(r.worker)}</td>
         <td>📅 ${escHtml(r.date)}</td>
-        <td><span style="font-size:12px;color:var(--muted)">${escHtml(r.unit.split(' - ')[0])}</span></td>
+        <td><span style="font-size:12px;color:var(--muted)">${escHtml((r.unit || '').split(' - ')[0])}</span></td>
         <td>${isCovering ? `<span class="badge badge-covered">🔄 ${escHtml(r.covering)}</span>` : `<span class="badge badge-direct">⚡ Extra Directa</span>`}</td>
-        <td><span class="badge badge-hours">+${r.hours}h</span></td>
+        <td><span class="badge badge-hours">+${hrs}h</span></td>
         <td>${escHtml(r.reason)}</td>
         <td style="text-align:right">
           <button class="btn btn-sm" data-action="edit-record" data-record-id="${r.id}" aria-label="Editar registro">✏️</button>
@@ -533,8 +588,9 @@ function render() {
   const workerTotals = {};
   let coverCount = 0;
   filtered.forEach(r => {
-    totalHours += r.hours;
-    workerTotals[r.worker] = (workerTotals[r.worker] || 0) + r.hours;
+    const h = parseFloat(r.hours) || 0;
+    totalHours += h;
+    workerTotals[r.worker] = (workerTotals[r.worker] || 0) + h;
     if (r.covering && !r.covering.includes('N/A')) coverCount++;
   });
   const uniqueWorkers = Object.keys(workerTotals).length;
@@ -549,14 +605,7 @@ function render() {
   document.getElementById('statCoverages').innerText = coverCount;
   updateStatsBars(totalHours, uniqueWorkers, coverCount);
   updateLastUpdated();
-
-  document.querySelectorAll('th.sortable').forEach(th => {
-    th.classList.remove('sorted-asc', 'sorted-desc');
-    const onclk = th.getAttribute('onclick') || '';
-    if (onclk.includes(`'${sortState.column}'`)) {
-      th.classList.add(sortState.direction === 'asc' ? 'sorted-asc' : 'sorted-desc');
-    }
-  });
+  updateSortIndicators();
 }
 
 function renderPagination(totalRecords, totalPages) {
@@ -590,6 +639,7 @@ function goToPage(page) {
 
 function filterByStat(type) {
   if (type === 'total') {
+    coverageOnlyFilter = false;
     document.getElementById('monthFilter').value = 'all';
     document.getElementById('unitFilter').value = 'all';
     document.getElementById('searchInput').value = '';
@@ -599,10 +649,11 @@ function filterByStat(type) {
   } else if (type === 'workers') {
     openWorkerSummaryModal();
   } else if (type === 'coverages') {
+    coverageOnlyFilter = true;
     document.getElementById('searchInput').value = '';
     currentPage = 1;
     render();
-    showToastMsg(`${document.getElementById('statCoverages').innerText} coberturas registradas.`, 'info');
+    showToastMsg('Mostrando solo coberturas.', 'info');
   }
 }
 
@@ -645,11 +696,13 @@ function openChartsModal() {
   const reasonTotals = {};
   let maxUnitHours = 0;
   records.forEach(r => {
-    const uName = r.unit.split(' - ')[0];
-    unitTotals[uName] = (unitTotals[uName] || 0) + r.hours;
+    if (!r) return;
+    const uName = (r.unit || '').split(' - ')[0];
+    const h = parseFloat(r.hours) || 0;
+    unitTotals[uName] = (unitTotals[uName] || 0) + h;
     if (unitTotals[uName] > maxUnitHours) maxUnitHours = unitTotals[uName];
-    const rName = r.reason.split('/')[0].trim();
-    reasonTotals[rName] = (reasonTotals[rName] || 0) + r.hours;
+    const rName = (r.reason || '').split('/')[0].trim();
+    reasonTotals[rName] = (reasonTotals[rName] || 0) + h;
   });
   const unitContainer = document.getElementById('unitChartsContainer');
   unitContainer.innerHTML = '';
@@ -789,7 +842,7 @@ function renderWorkerSummary() {
   const filter = document.getElementById('summaryMonthFilter').value;
   let filtered = records;
   if (filter.startsWith('month_')) {
-    const [, , year, month] = filter.split('_');
+    const [, year, month] = filter.split('_');
     const monthNum = parseInt(month);
     filtered = filtered.filter(r => {
       const parts = r.date.split('/');
@@ -828,7 +881,7 @@ function doExportWorkerSummaryExcel() {
   const filter = document.getElementById('summaryMonthFilter').value;
   let filtered = records;
   if (filter.startsWith('month_')) {
-    const [, , year, month] = filter.split('_');
+    const [, year, month] = filter.split('_');
     const monthNum = parseInt(month);
     filtered = filtered.filter(r => {
       const parts = r.date.split('/');
@@ -907,6 +960,8 @@ function editUnit() {
   saveUnits(units);
   records.forEach(r => { if (r.unit === oldName) r.unit = newName; });
   saveRecords();
+  initUnitFilter();
+  initDatalists();
   openWorkersModal();
   render();
   showToastMsg('Unidad renombrada.', 'success');
@@ -1034,7 +1089,7 @@ function exportCSV() {
 // ========================
 function exportJSON() {
   if (records.length === 0) { showToastMsg('No hay registros para exportar.', 'warning'); return; }
-  const data = { version: '1.0', exportedAt: new Date().toISOString(), count: records.length, records };
+  const data = { version: '1.1', exportedAt: new Date().toISOString(), count: records.length, records, units: getUnits() };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1058,8 +1113,15 @@ function importJSON() {
         return;
       }
       if (!window.confirm(`¿Importar ${data.records.length} registros? Esto reemplazará los datos actuales.`)) return;
-      records = data.records;
+      records = data.records.map(normalizeRecord);
       saveRecords();
+      if (Array.isArray(data.units) && data.units.length > 0) {
+        saveUnits(data.units);
+        initUnitFilter();
+        initDatalists();
+      }
+      currentPage = 1;
+      coverageOnlyFilter = false;
       render();
       showToastMsg(`Importados ${data.records.length} registros.`, 'success');
     } catch (err) {
@@ -1136,6 +1198,7 @@ async function generateAndSendPDF() {
   }
   const to = document.getElementById('emailPDFTo').value.trim();
   const subject = encodeURIComponent(document.getElementById('emailPDFSubject').value);
+  const totals = computeTotals(records);
   const pdfDiv = document.createElement('div');
   pdfDiv.style.padding = '24px';
   pdfDiv.style.color = '#0f172a';
@@ -1146,14 +1209,14 @@ async function generateAndSendPDF() {
   html += `<div style="font-size:24px;font-weight:bold;color:#0284c7">⏱️ CONTROL</div>`;
   html += `</div>`;
   html += `<div style="display:flex;gap:12px;margin-bottom:16px;">`;
-  html += `<div style="background:#f1f5f9;padding:12px;border-radius:8px;flex:1"><span style="font-size:11px;color:#64748b">TOTAL HORAS EXTRAS</span><br><b style="font-size:18px;color:#0284c7">${document.getElementById('statTotal').innerText}</b></div>`;
-  html += `<div style="background:#f1f5f9;padding:12px;border-radius:8px;flex:1"><span style="font-size:11px;color:#64748b">TRABAJADORES ACTIVOS</span><br><b style="font-size:18px">${document.getElementById('statWorkers').innerText}</b></div>`;
-  html += `<div style="background:#f1f5f9;padding:12px;border-radius:8px;flex:1"><span style="font-size:11px;color:#64748b">TOTAL COBERTURAS</span><br><b style="font-size:18px">${document.getElementById('statCoverages').innerText}</b></div>`;
+  html += `<div style="background:#f1f5f9;padding:12px;border-radius:8px;flex:1"><span style="font-size:11px;color:#64748b">TOTAL HORAS EXTRAS</span><br><b style="font-size:18px;color:#0284c7">${totals.totalHours}h</b></div>`;
+  html += `<div style="background:#f1f5f9;padding:12px;border-radius:8px;flex:1"><span style="font-size:11px;color:#64748b">TRABAJADORES ACTIVOS</span><br><b style="font-size:18px">${totals.workers}</b></div>`;
+  html += `<div style="background:#f1f5f9;padding:12px;border-radius:8px;flex:1"><span style="font-size:11px;color:#64748b">TOTAL COBERTURAS</span><br><b style="font-size:18px">${totals.covers}</b></div>`;
   html += `</div>`;
   html += `<table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:10px" border="1" borderColor="#cbd5e1" cellpadding="6">`;
   html += `<thead style="background:#0284c7;color:#ffffff"><tr><th style="padding:8px">Trabajador (Sustituto)</th><th style="padding:8px">Fecha</th><th style="padding:8px">Unidad</th><th style="padding:8px">A Quien Cubre</th><th style="padding:8px">Horas</th><th style="padding:8px">Motivo / Nota</th></tr></thead><tbody>`;
   records.forEach(r => {
-    html += `<tr><td style="padding:6px;font-weight:bold">${escHtml(r.worker)}</td><td style="padding:6px">${escHtml(r.date)}</td><td style="padding:6px">${escHtml(r.unit.split(' - ')[0])}</td><td style="padding:6px">${escHtml(r.covering)}</td><td style="padding:6px;font-weight:bold;color:#0284c7">+${r.hours}h</td><td style="padding:6px">${escHtml(r.reason)}</td></tr>`;
+    html += `<tr><td style="padding:6px;font-weight:bold">${escHtml(r.worker)}</td><td style="padding:6px">${escHtml(r.date)}</td><td style="padding:6px">${escHtml((r.unit || '').split(' - ')[0])}</td><td style="padding:6px">${escHtml(r.covering)}</td><td style="padding:6px;font-weight:bold;color:#0284c7">+${parseFloat(r.hours) || 0}h</td><td style="padding:6px">${escHtml(r.reason)}</td></tr>`;
   });
   html += `</tbody></table>`;
   pdfDiv.innerHTML = html;
@@ -1171,10 +1234,10 @@ async function generateAndSendPDF() {
     showToastMsg('No se pudo cargar html2pdf.', 'error');
     return;
   }
-  generatePDF(opt, pdfDiv, to, subject);
+  generatePDF(opt, pdfDiv, to, subject, totals);
 }
 
-async function generatePDF(opt, pdfDiv, to, subject) {
+async function generatePDF(opt, pdfDiv, to, subject, totals) {
   const pdfWorker = html2pdf().set(opt).from(pdfDiv);
   if (navigator.canShare) {
     try {
@@ -1184,14 +1247,14 @@ async function generatePDF(opt, pdfDiv, to, subject) {
         await navigator.share({
           files: [file],
           title: 'Informe de Horas Extras y Coberturas PDF',
-          text: `Adjunto informe oficial de horas extras (${document.getElementById('statTotal').innerText}).`
+          text: `Adjunto informe oficial de horas extras (${totals.totalHours}h).`
         });
         return;
       }
     } catch (err) { console.log('Web share skipped', err); }
   }
   pdfWorker.save();
-  const mailtoBody = encodeURIComponent(`Hola,\n\nTe adjunto el informe oficial en PDF "${opt.filename}" recién descargado en el dispositivo.\n\nResumen:\n- Total Horas Extras: ${document.getElementById('statTotal').innerText}\n- Trabajadores Activos: ${document.getElementById('statWorkers').innerText}\n\nUn saludo.`);
+  const mailtoBody = encodeURIComponent(`Hola,\n\nTe adjunto el informe oficial en PDF "${opt.filename}" recién descargado en el dispositivo.\n\nResumen:\n- Total Horas Extras: ${totals.totalHours}h\n- Trabajadores Activos: ${totals.workers}\n\nUn saludo.`);
   const mailtoUrl = `mailto:${to}?subject=${subject}&body=${mailtoBody}`;
   setTimeout(() => { window.location.href = mailtoUrl; }, 600);
 }
@@ -1222,8 +1285,12 @@ function restoreBackup() {
     const data = JSON.parse(raw);
     const count = data.records ? data.records.length : 0;
     if (!window.confirm(`Restaurar backup del ${new Date(data.savedAt).toLocaleString('es-ES')} con ${count} registros? Esto reemplazará los datos actuales.`)) return;
-    if (data.records) { records = data.records; saveRecords(); }
+    if (data.records) { records = data.records.map(normalizeRecord); saveRecords(); }
     if (data.units) saveUnits(data.units);
+    initUnitFilter();
+    initDatalists();
+    currentPage = 1;
+    coverageOnlyFilter = false;
     render();
     showToastMsg('Backup restaurado.', 'success');
   } catch(e) { showToastMsg('Error al restaurar el backup.', 'error'); }
@@ -1340,7 +1407,12 @@ document.addEventListener('input', (e) => {
   const id = e.target.id;
   if (id === 'searchInput' || id === 'monthFilter' || id === 'unitFilter' || id === 'summaryMonthFilter' || id === 'manageUnitSelect') {
     if (id === 'manageUnitSelect') renderWorkersList();
-    else { currentPage = 1; renderWorkerSummary(); if (id !== 'summaryMonthFilter') render(); }
+    else {
+      if (id !== 'summaryMonthFilter') coverageOnlyFilter = false;
+      currentPage = 1;
+      renderWorkerSummary();
+      if (id !== 'summaryMonthFilter') render();
+    }
   }
 });
 
@@ -1444,9 +1516,10 @@ async function renderMonthlyChart() {
     const monthNum = d.getMonth() + 1;
     const year = d.getFullYear();
     const total = records.reduce((sum, r) => {
+      if (!r || !r.date) return sum;
       const parts = r.date.split('/');
       if (parts.length === 3 && parseInt(parts[1]) === monthNum && parseInt(parts[2]) === year) {
-        return sum + r.hours;
+        return sum + (parseFloat(r.hours) || 0);
       }
       return sum;
     }, 0);
@@ -1516,14 +1589,17 @@ if ('serviceWorker' in navigator) {
           const newWorker = reg.installing;
           newWorker.addEventListener('statechange', () => {
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              showToastMsg('Nueva versión disponible. Pulsa para actualizar.', 'info');
               newWorker.postMessage({ action: 'SKIP_WAITING' });
-              setTimeout(() => location.reload(), 2000);
             }
           });
         });
       })
       .catch(err => console.log('SW registration error:', err));
+    navigator.serviceWorker.addEventListener('message', (e) => {
+      if (e.data && e.data.type === 'SW_UPDATED') {
+        showToastMsg('Nueva versión disponible. Pulsa para actualizar.', 'info');
+      }
+    });
     navigator.serviceWorker.addEventListener('controllerchange', () => location.reload());
   });
 }
@@ -1531,11 +1607,20 @@ if ('serviceWorker' in navigator) {
 // ========================
 // Init
 // ========================
+window.addEventListener('hashchange', () => {
+  if (window.location.hash === '#registrar') {
+    openRecordModal();
+    try { history.replaceState(null, '', window.location.pathname + window.location.search); } catch (e) {}
+  }
+});
+
 document.addEventListener('DOMContentLoaded', () => {
   loadTheme();
   initDatalists();
   initMonthFilter();
   initUnitFilter();
   render();
+  document.getElementById('recUnit').addEventListener('change', filterWorkersByUnit);
   initAutoBackup();
+  if (window.location.hash === '#registrar') openRecordModal();
 });
