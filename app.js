@@ -574,15 +574,24 @@ function updateShiftUi(explicitShift, opts = {}) {
   const group = document.getElementById('shiftGroup');
   if (group) group.style.display = unit ? '' : 'none';
   const summary = document.getElementById('shiftSummary');
+  const splitHint = document.getElementById('shiftSplitHint');
   if (summary) {
     const w = parseUnitWindow(unit);
     if (w) {
       const spanTxt = w.start === w.end ? '24h' : Math.abs(w.end - w.start) + 'h';
-      summary.textContent = `Ventana unidad: ${String(w.start).padStart(2,'0')}:00 – ${String(w.end).padStart(2,'0')}:00 (${spanTxt}). Inferido: ${shiftLabel(shift) || '—'}`;
+      const parts = [`Ventana unidad: ${String(w.start).padStart(2,'0')}:00 – ${String(w.end).padStart(2,'0')}:00 (${spanTxt}). Inferido: ${shiftLabel(shift) || '—'}`];
+      // 24h guard with 12h turn tip
+      if (w.start === w.end && hours > 0 && hours < 24 && shift !== '24') {
+        parts.push('Esta guardia 24h se cubre entre dos turnos; marca Día o Noche explícitamente.');
+      }
+      summary.textContent = parts.join(' ');
+      if (splitHint) splitHint.style.display = (w.start === w.end && hours > 0 && hours < 24) ? '' : 'none';
     } else if (unit) {
       summary.textContent = 'Sin horario definido.';
+      if (splitHint) splitHint.style.display = 'none';
     } else {
       summary.textContent = '';
+      if (splitHint) splitHint.style.display = 'none';
     }
   }
 }
@@ -1976,6 +1985,10 @@ function renderVehiculos() {
       const shift = r.shift || inferShift(r.unit, hrs, '');
       byShift[(byShift[shift] ? shift : '')].push({ r, hrs, isCov, shift });
     });
+
+    // Boolean: day + night turns both present
+    const isSplit24 = !!(byShift.dia.length && byShift.noche.length);
+    if (isSplit24 && pillText === 'Cubierta') pillText = 'D + N cubiertas';
     const renderGroup = (key, label, icon) => {
       const arr = byShift[key];
       if (!arr.length) return '';
