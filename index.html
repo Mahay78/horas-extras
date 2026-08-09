@@ -257,12 +257,13 @@
       </div>
       <div class="form-group">
         <label for="recWorker">Trabajador (Sustituto/a)</label>
-        <input type="text" id="recWorker" list="workersDatalist" placeholder="APELLIDOS, NOMBRE" autocomplete="off" autocapitalize="characters" required>
-        <datalist id="workersDatalist"></datalist>
+        <input type="text" id="recWorker" list="allWorkersDatalist" placeholder="APELLIDOS, NOMBRE" autocomplete="off" autocapitalize="characters" required>
+        <datalist id="allWorkersDatalist"></datalist>
       </div>
       <div class="form-group">
         <label for="recCovering">A Quién Cubre (si aplica)</label>
-        <input type="text" id="recCovering" placeholder="APELLIDOS, NOMBRE" autocomplete="off" autocapitalize="characters">
+        <input type="text" id="recCovering" list="coverageDatalist" placeholder="APELLIDOS, NOMBRE" autocomplete="off" autocapitalize="characters">
+        <datalist id="coverageDatalist"></datalist>
       </div>
       <div class="form-group">
         <label for="recReason">Motivo / Nota</label>

@@ -71,6 +71,7 @@ function addWorker(unitIdx, workerName) {
     if (!units[unitIdx].workers.includes(upper)) {
       units[unitIdx].workers.push(upper);
       saveUnits(units);
+      populateAllWorkersDatalists();
     }
   }
 }
@@ -80,6 +81,7 @@ function removeWorker(unitIdx, workerIdx) {
   if (units[unitIdx] && units[unitIdx].workers[workerIdx]) {
     units[unitIdx].workers.splice(workerIdx, 1);
     saveUnits(units);
+    populateAllWorkersDatalists();
   }
 }
 
@@ -90,6 +92,7 @@ function addUnit(unitName) {
   if (units.some(u => u.unit === upper)) { showToastMsg('Esa unidad ya existe.', 'warning'); return false; }
   units.push({ unit: upper, workers: [] });
   saveUnits(units);
+  populateAllWorkersDatalists();
   return true;
 }
 
@@ -99,6 +102,7 @@ function removeUnit(unitIdx) {
   if (!window.confirm(`¿Eliminar la unidad "${units[unitIdx].unit}"? Se borrarán todos sus trabajadores.`)) return;
   units.splice(unitIdx, 1);
   saveUnits(units);
+  populateAllWorkersDatalists();
 }
 
 // ========================
@@ -401,30 +405,37 @@ function initDatalists() {
     opt.textContent = u.unit.split(' - ')[0];
     uSel.appendChild(opt);
   });
-  const dl = document.getElementById('workersDatalist');
-  dl.innerHTML = '';
+  populateAllWorkersDatalists();
 }
 
-function filterWorkersByUnit() {
-  const unit = document.getElementById('recUnit').value;
-  const dl = document.getElementById('workersDatalist');
-  dl.innerHTML = '';
-  if (!unit) {
-    const placeholder = document.createElement('option');
-    placeholder.value = '';
-    placeholder.disabled = true;
-    placeholder.textContent = 'Selecciona una unidad primero';
-    dl.appendChild(placeholder);
-    return;
-  }
-  const unitObj = getUnits().find(u => u.unit === unit);
-  if (unitObj) {
-    unitObj.workers.forEach(w => {
+function populateAllWorkersDatalists() {
+  // Collect every worker across every unit, deduplicated, sorted.
+  const seen = new Set();
+  const all = [];
+  getUnits().forEach(u => {
+    (u.workers || []).forEach(w => {
+      const norm = w.trim().toUpperCase();
+      if (!norm) return;
+      if (!seen.has(norm)) { seen.add(norm); all.push(w); }
+    });
+  });
+  all.sort((a, b) => a.localeCompare(b, 'es-ES'));
+  const ids = ['allWorkersDatalist', 'coverageDatalist'];
+  ids.forEach(id => {
+    const dl = document.getElementById(id);
+    if (!dl) return;
+    dl.innerHTML = '';
+    all.forEach(w => {
       const opt = document.createElement('option');
       opt.value = w;
       dl.appendChild(opt);
     });
-  }
+  });
+}
+
+function filterWorkersByUnit() {
+  // Kept for backwards compatibility: no longer restricts the datalist.
+  // Worker and cover fields always show the full global pool.
 }
 
 // ========================
