@@ -887,6 +887,60 @@ tr:hover td { background: var(--card-hover); }
 }
 .hours-stepper button:hover { border-color: var(--primary); color: var(--primary); }
 
+/* Shift (turno) toggle */
+.shift-summary { font-size: 12px; color: var(--muted); margin-top: 6px; font-style: italic; }
+.shift-toggle { display: flex; gap: 8px; }
+.shift-btn {
+  flex: 1;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--muted);
+  padding: 10px 8px;
+  font-size: 13px; font-weight: 600;
+  cursor: pointer;
+  min-height: 44px;
+  transition: all 0.15s ease;
+}
+.shift-btn:hover { border-color: var(--border-hover); }
+.shift-btn.active[data-shift="dia"] {
+  background: linear-gradient(135deg, rgba(245,158,11,0.25), rgba(245,158,11,0.1));
+  border-color: var(--warning); color: var(--warning);
+}
+.shift-btn.active[data-shift="noche"] {
+  background: linear-gradient(135deg, rgba(99,102,241,0.30), rgba(99,102,241,0.1));
+  border-color: #818cf8; color: #818cf8;
+}
+.light-mode .shift-btn.active[data-shift="noche"] { color: #4338ca; }
+.shift-btn.active[data-shift="24"] {
+  background: linear-gradient(135deg, rgba(56,189,248,0.25), rgba(56,189,248,0.1));
+  border-color: var(--primary); color: var(--primary);
+}
+.shift-btn .shift-icon { font-size: 16px; }
+
+/* Shift badges in rows and vehiculo cards */
+.shift-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+.shift-badge.dia { background: rgba(245,158,11,0.15); color: var(--warning); border: 1px solid rgba(245,158,11,0.3); }
+.shift-badge.noche { background: rgba(99,102,241,0.20); color: #818cf8; border: 1px solid rgba(99,102,241,0.4); }
+.light-mode .shift-badge.noche { color: #4338ca; }
+.shift-badge.dia-noche { background: rgba(168,85,247,0.15); color: #c084fc; border: 1px solid rgba(168,85,247,0.35); }
+.shift-badge.full-24 { background: rgba(56,189,248,0.15); color: var(--primary); border: 1px solid rgba(56,189,248,0.3); }
+
+/* Color stripe on rows and cards based on shift */
+tr.td-shift-noche { border-left: 4px solid #818cf8 !important; padding-left: 12px !important; }
+tr.td-shift-dia { border-left: 4px solid var(--warning) !important; padding-left: 12px !important; }
+tr.td-shift-24 { border-left: 4px solid var(--primary) !important; padding-left: 12px !important; }
+
 /* Quick reasons scrollable strip */
 .quick-reasons { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; margin-top: 8px; scrollbar-width: none; }
 .quick-reasons::-webkit-scrollbar { display: none; }
@@ -1070,6 +1124,21 @@ tr:hover td { background: var(--card-hover); }
   border-radius: 8px;
   padding: 6px 8px;
   min-height: 30px;
+}
+.vehiculo-card .vc-list .vc-group { margin-bottom: 8px; }
+.vehiculo-card .vc-list .vc-group:last-child { margin-bottom: 0; }
+.vehiculo-card .vc-list .vc-group-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--muted);
+  margin: 4px 0 4px 4px;
+}
+.vehiculo-card .vc-list .vc-group-title small {
+  display: inline-block; margin-left: 4px;
+  background: var(--border); color: var(--text);
+  padding: 1px 6px; border-radius: 6px; font-size: 10px;
 }
 .vehiculo-card .vc-list .vc-t.cobertura { border-left: 3px solid var(--warning); }
 .vehiculo-card .vc-t .who { font-weight: 600; color: var(--text); }

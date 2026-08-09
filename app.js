@@ -132,8 +132,60 @@ function normalizeRecord(r) {
     hours: parseFloat(r.hours) || 0,
     covering: r.covering != null ? String(r.covering) : 'N/A (Extra Directa)',
     reason: r.reason != null ? String(r.reason) : 'Horas extras asignadas',
+    shift: r.shift != null ? String(r.shift) : '',
     createdAt: r.createdAt != null ? String(r.createdAt) : new Date().toLocaleString('es-ES')
   };
+}
+
+// ========================
+// Shift inference (turno día / noche)
+// ========================
+function parseUnitWindow(unitName) {
+  // Looks for "HHh A HHh" patterns in unit name, returns [startHour, endHour]
+  // Covers "DE 09H A 09H", "07H A 19H", etc.
+  const m = String(unitName || '').toUpperCase().match(/(\d{1,2})\s*H\s*A\s*(\d{1,2})\s*H/i);
+  if (!m) return null;
+  const start = parseInt(m[1], 10);
+  const end = parseInt(m[2], 10);
+  if (Number.isNaN(start) || Number.isNaN(end)) return null;
+  return { start, end };
+}
+
+function inferShift(unitName, hours, explicitShift) {
+  if (explicitShift) return explicitShift;
+  const u = String(unitName || '').toUpperCase();
+  // Explicit 24h shift markers
+  if (u.includes('24H')) return '24';
+  const w = parseUnitWindow(unitName);
+  if (!w) return '';
+  if (w.start === w.end) return '24';
+  const forwardSpan = (w.end - w.start + 24) % 24;
+  const crossesNoche = w.start < 6 || w.start >= 21 || w.end > 20 || w.end <= 5;
+  if (forwardSpan <= 12 && !crossesNoche) return 'dia';
+  if (forwardSpan <= 12 && crossesNoche) return 'noche';
+  return forwardSpan >= 20 ? '24' : 'dia';
+}
+
+function shiftLabel(s) {
+  if (s === 'dia') return '☀️ Día';
+  if (s === 'noche') return '🌙 Noche';
+  if (s === '24') return '🕓 24h';
+  return '';
+}
+
+function shiftRowClass(s) {
+  if (s === 'noche') return 'td-shift-noche';
+  if (s === 'dia') return 'td-shift-dia';
+  if (s === '24') return 'td-shift-24';
+  return '';
+}
+
+function shiftBadgeHtml(s) {
+  if (!s) return '';
+  if (s === 'dia') return '<span class="shift-badge dia">☀️ Día</span>';
+  if (s === 'noche') return '<span class="shift-badge noche">🌙 Noche</span>';
+  if (s === '24') return '<span class="shift-badge full-24">🕓 24h</span>';
+  return '';
 }
 
 function computeTotals(list) {
@@ -477,6 +529,7 @@ function openRecordModal() {
   document.getElementById('recHours').value = 12;
   document.getElementById('recDate').value = todayLocalISO();
   filterWorkersByUnit();
+  updateShiftUi();
   openModal('recordModal');
 }
 
@@ -499,7 +552,57 @@ function editRecord(id) {
       document.getElementById('recDate').value = todayLocalISO();
     }
   }
+  updateShiftUi(r.shift || null);
   openModal('recordModal');
+}
+
+function updateShiftUi(explicitShift, opts = {}) {
+  const unit = document.getElementById('recUnit')?.value || '';
+  const hours = parseFloat(document.getElementById('recHours')?.value) || 0;
+  // If opts.keepExplicit is true (user clicked a chip), reuse it; else re-derive.
+  let shift;
+  if (opts.keepExplicit && explicitShift) {
+    shift = explicitShift;
+  } else if (explicitShift) {
+    shift = explicitShift;
+  } else {
+    shift = inferShift(unit, hours, '');
+  }
+  document.querySelectorAll('.shift-btn').forEach(b => b.classList.toggle('active', b.dataset.shift === shift));
+  const hidden = document.getElementById('recShift');
+  if (hidden && shift) hidden.value = shift;
+  const group = document.getElementById('shiftGroup');
+  if (group) group.style.display = unit ? '' : 'none';
+  const summary = document.getElementById('shiftSummary');
+  if (summary) {
+    const w = parseUnitWindow(unit);
+    if (w) {
+      const spanTxt = w.start === w.end ? '24h' : Math.abs(w.end - w.start) + 'h';
+      summary.textContent = `Ventana unidad: ${String(w.start).padStart(2,'0')}:00 – ${String(w.end).padStart(2,'0')}:00 (${spanTxt}). Inferido: ${shiftLabel(shift) || '—'}`;
+    } else if (unit) {
+      summary.textContent = 'Sin horario definido.';
+    } else {
+      summary.textContent = '';
+    }
+  }
+}
+
+function bindShiftToggle() {
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-shift]');
+    if (!btn) return;
+    document.getElementById('recShift').value = btn.dataset.shift;
+    updateShiftUi(btn.dataset.shift, { keepExplicit: true });
+    haptic(8);
+  });
+  // When unit or hours change, reset to inferred shift
+  const onUnitOrHours = () => {
+    document.getElementById('recShift').value = '';
+    updateShiftUi();
+  };
+  document.addEventListener('change', (e) => {
+    if (e.target.id === 'recUnit' || e.target.id === 'recHours') onUnitOrHours();
+  });
 }
 
 function setReason(txt) {
@@ -514,6 +617,7 @@ function saveRecord() {
   const hours = parseFloat(document.getElementById('recHours').value) || 0;
   const covering = document.getElementById('recCovering').value.trim().toUpperCase();
   const reason = document.getElementById('recReason').value.trim();
+  const shift = document.getElementById('recShift')?.value || inferShift(unit, hours, '');
 
   if (!worker) { showToastMsg('Introduce el nombre del trabajador.', 'warning'); return; }
   if (hours <= 0) { showToastMsg('Las horas deben ser mayores a 0.', 'warning'); return; }
@@ -550,6 +654,7 @@ function saveRecord() {
       records[idx].hours = hours;
       records[idx].covering = covering || 'N/A (Extra Directa)';
       records[idx].reason = reason || 'Horas extras asignadas';
+      records[idx].shift = shift;
     }
   } else {
     records.unshift({
@@ -557,6 +662,7 @@ function saveRecord() {
       worker, unit, date: formattedDate, hours,
       covering: covering || 'N/A (Extra Directa)',
       reason: reason || 'Horas extras asignadas',
+      shift,
       createdAt: new Date().toLocaleString('es-ES')
     });
   }
@@ -714,10 +820,16 @@ function render() {
       const isCovering = r.covering && !r.covering.includes('N/A');
       const coveringLabel = isCovering ? `🔄 ${escHtml(r.covering)}` : '⚡ Extra Directa';
       const unitShort = escHtml((r.unit || '').split(' - ')[0]);
+      const shift = r.shift || inferShift(r.unit, parseFloat(r.hours) || 0, '');
       tr.dataset.recordId = r.id;
       tr.dataset.longPress = 'record';
+      tr.classList.add(shiftRowClass(shift));
+      tr.dataset.shift = shift;
       tr.innerHTML = `
-        <td class="td-worker">${escHtml(r.worker)}</td>
+        <td class="td-worker">
+          <span>${escHtml(r.worker)}</span>
+          ${shift ? `<span class="shift-badge ${shift === 'noche' ? 'noche' : shift === 'dia' ? 'dia' : 'full-24'}">${shiftLabel(shift)}</span>` : ''}
+        </td>
         <td class="td-headline">
           <span class="badge badge-hours">${hrsLabel}</span>
           <span class="badge ${isCovering ? 'badge-covered' : 'badge-direct'}">${coveringLabel}</span>
@@ -1856,16 +1968,34 @@ function renderVehiculos() {
     else if (libres > 0) cardClass += ' parcial';
     else cardClass += ' cubierta';
     const shortName = escHtml((u.unit || '').split(' - ')[0] || u.unit);
-    const listItems = items.length === 0
-      ? '<div class="vc-empty">Sin asignaciones para hoy.</div>'
-      : items.map(r => {
-          const hrs = parseFloat(r.hours) || 0;
-          const isCov = r.covering && !String(r.covering).includes('N/A');
+    // Group items by shift for nicer reading
+    const byShift = { dia: [], noche: [], '24': [], '': [] };
+    items.forEach(r => {
+      const hrs = parseFloat(r.hours) || 0;
+      const isCov = r.covering && !String(r.covering).includes('N/A');
+      const shift = r.shift || inferShift(r.unit, hrs, '');
+      byShift[(byShift[shift] ? shift : '')].push({ r, hrs, isCov, shift });
+    });
+    const renderGroup = (key, label, icon) => {
+      const arr = byShift[key];
+      if (!arr.length) return '';
+      return `<div class="vc-group">
+        <div class="vc-group-title"><span>${icon}</span> ${escHtml(label)} <small>${arr.length}</small></div>
+        ${arr.map(({ r, hrs, isCov }) => {
+          const aria = isCov ? '🔄 ' : '';
           return `<div class="vc-t ${isCov ? 'cobertura' : ''}">
-            <span class="who">${isCov ? '🔄 ' : ''}${escHtml(r.worker || '')}</span>
+            <span class="who">${aria}${escHtml(r.worker || '')}</span>
             <span class="hrs">${hrs > 0 ? '+'+hrs+'h' : '—'}</span>
           </div>`;
-        }).join('');
+        }).join('')}
+      </div>`;
+    };
+    const listItems = items.length === 0
+      ? '<div class="vc-empty">Sin asignaciones para hoy.</div>'
+      : renderGroup('dia', 'Día', '☀️')
+        + renderGroup('noche', 'Noche', '🌙')
+        + renderGroup('24', '24h', '🕓')
+        + renderGroup('', 'Otros', '—');
     const missing = libres > 0
       ? `<div class="vc-missing">⚠️ Faltan ${libres} plazas para cubrir esta unidad.</div>`
       : '';
@@ -2265,6 +2395,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initAutoBackup();
   bindLongPress();
   bindHoursStepper();
+  bindShiftToggle();
   bindFabLongPress();
   initPullToRefresh();
   initVisualViewportHandlers();

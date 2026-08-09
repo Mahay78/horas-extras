@@ -256,6 +256,25 @@
       <div class="form-group">
         <label for="recUnit">Unidad Asignada</label>
         <select id="recUnit" required></select>
+        <div id="shiftSummary" class="shift-summary" aria-live="polite"></div>
+      </div>
+      <div class="form-group" id="shiftGroup" style="display:none;">
+        <label>Turno</label>
+        <div class="shift-toggle" role="radiogroup" aria-label="Turno">
+          <button type="button" class="shift-btn" data-shift="dia" role="radio" aria-checked="false">
+            <span class="shift-icon">☀️</span>
+            <span>Día</span>
+          </button>
+          <button type="button" class="shift-btn" data-shift="noche" role="radio" aria-checked="false">
+            <span class="shift-icon">🌙</span>
+            <span>Noche</span>
+          </button>
+          <button type="button" class="shift-btn" data-shift="24" role="radio" aria-checked="false">
+            <span class="shift-icon">🕓</span>
+            <span>24h</span>
+          </button>
+        </div>
+        <input type="hidden" id="recShift" value="">
       </div>
       <div class="form-group">
         <label for="recWorker">Trabajador (Sustituto/a)</label>
